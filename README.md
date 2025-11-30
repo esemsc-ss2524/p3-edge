@@ -50,9 +50,19 @@ Phase 1 (Foundation) is now complete with the following components:
    ```
 
 3. **Install dependencies**
+   
+   You might need to install SQLCipher C library and headers
+   ```bash
+   sudo apt update
+   sudo apt install sqlcipher libsqlcipher-dev
+   ```
+
+   Python libraries:
    ```bash
    pip install -r requirements.txt
    ```
+
+
 
 4. **Initialize the database**
    ```bash
