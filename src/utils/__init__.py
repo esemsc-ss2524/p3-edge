@@ -11,6 +11,7 @@ from .encryption import (
     hash_password,
     verify_password,
 )
+from .item_matcher import ItemMatcher
 from .logger import (
     AuditLogger,
     P3EdgeLogger,
@@ -28,6 +29,8 @@ __all__ = [
     "verify_password",
     "generate_secure_token",
     "derive_key_from_password",
+    # Item Matching
+    "ItemMatcher",
     # Logging
     "P3EdgeLogger",
     "AuditLogger",
