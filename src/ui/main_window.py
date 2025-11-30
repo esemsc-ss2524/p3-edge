@@ -21,15 +21,30 @@ from PyQt6.QtWidgets import (
     QMessageBox,
 )
 
+from src.database.db_manager import DatabaseManager
+from src.services import InventoryService
+from src.ui.inventory_page import InventoryPage
+from src.utils import get_logger
+
 
 class MainWindow(QMainWindow):
     """Main application window with navigation."""
 
-    def __init__(self) -> None:
-        """Initialize the main window."""
+    def __init__(self, db_manager: Optional[DatabaseManager] = None) -> None:
+        """
+        Initialize the main window.
+
+        Args:
+            db_manager: Database manager instance (optional for Phase 1 compatibility)
+        """
         super().__init__()
         self.setWindowTitle("P3-Edge - Autonomous Grocery Assistant")
         self.setMinimumSize(1024, 768)
+
+        # Store dependencies
+        self.db_manager = db_manager
+        self.inventory_service = InventoryService(db_manager) if db_manager else None
+        self.logger = get_logger("main_window")
 
         # Create central widget and layout
         self.central_widget = QWidget()
@@ -125,10 +140,10 @@ class MainWindow(QMainWindow):
             }
         """)
 
-        # Create placeholder pages
+        # Create pages
         self.pages = {
             "dashboard": self._create_dashboard_page(),
-            "inventory": self._create_placeholder_page("Inventory Management"),
+            "inventory": InventoryPage(self.inventory_service) if self.inventory_service else self._create_placeholder_page("Inventory Management"),
             "forecasts": self._create_placeholder_page("Forecast View"),
             "shopping_cart": self._create_placeholder_page("Shopping Cart"),
             "order_history": self._create_placeholder_page("Order History"),
@@ -174,16 +189,19 @@ class MainWindow(QMainWindow):
         stats_layout = QHBoxLayout()
         stats_layout.setSpacing(20)
 
-        # Create stat cards
-        stat_cards = [
-            ("Inventory Items", "0", "#3498db"),
-            ("Low Stock Items", "0", "#e74c3c"),
-            ("Pending Orders", "0", "#f39c12"),
-            ("This Month's Savings", "$0.00", "#27ae60"),
+        # Create stat cards (store for updates)
+        self.stat_cards = {}
+
+        stat_card_configs = [
+            ("total_items", "Inventory Items", "0", "#3498db"),
+            ("low_stock", "Low Stock Items", "0", "#e74c3c"),
+            ("pending_orders", "Pending Orders", "0", "#f39c12"),
+            ("savings", "This Month's Savings", "$0.00", "#27ae60"),
         ]
 
-        for title, value, color in stat_cards:
+        for key, title, value, color in stat_card_configs:
             card = self._create_stat_card(title, value, color)
+            self.stat_cards[key] = card
             stats_layout.addWidget(card)
 
         layout.addLayout(stats_layout)
@@ -307,6 +325,40 @@ class MainWindow(QMainWindow):
         """Show the dashboard page."""
         self.content_stack.setCurrentWidget(self.pages["dashboard"])
         self.status_bar.showMessage("Dashboard")
+        self._update_dashboard_stats()
+
+    def _update_dashboard_stats(self) -> None:
+        """Update dashboard statistics."""
+        if not self.inventory_service:
+            return
+
+        try:
+            stats = self.inventory_service.get_stats()
+
+            # Update stat cards
+            if "total_items" in self.stat_cards:
+                self._update_stat_card_value(
+                    self.stat_cards["total_items"],
+                    str(stats.get("total_items", 0))
+                )
+
+            if "low_stock" in self.stat_cards:
+                self._update_stat_card_value(
+                    self.stat_cards["low_stock"],
+                    str(stats.get("low_stock_items", 0))
+                )
+
+        except Exception as e:
+            self.logger.error(f"Failed to update dashboard stats: {e}")
+
+    def _update_stat_card_value(self, card_widget, new_value: str) -> None:
+        """Update the value label in a stat card."""
+        # Find the value label (second child in the layout)
+        layout = card_widget.layout()
+        if layout and layout.count() >= 2:
+            value_label = layout.itemAt(1).widget()
+            if value_label:
+                value_label.setText(new_value)
 
     def show_inventory(self) -> None:
         """Show the inventory page."""

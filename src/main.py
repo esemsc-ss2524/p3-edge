@@ -91,8 +91,8 @@ class P3EdgeApplication:
             app.setApplicationName("P3-Edge")
             app.setOrganizationName("P3-Edge")
 
-            # Create and show main window
-            self.main_window = MainWindow()
+            # Create and show main window with db_manager
+            self.main_window = MainWindow(db_manager=self.db_manager)
             self.main_window.show()
 
             self.logger.info("Application running...")
