@@ -1,1 +1,301 @@
-# p3-edge
+# P3-Edge: Autonomous Grocery Shopping Assistant
+
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+An edge-computing autonomous grocery shopping agent that leverages on-device AI to track household inventory, predict needs, and execute seamless grocery orders through Amazon and Walmart.
+
+## 🌟 Key Features
+
+- **Edge-First Architecture**: All AI processing runs locally for maximum privacy
+- **Encrypted Storage**: SQLCipher-encrypted database with AES-256 encryption
+- **Smart Forecasting**: State space models with online learning for consumption prediction
+- **LLM-Driven Intelligence**: Gemma 3n for conversational interface and adaptive learning
+- **Privacy-By-Design**: Minimal internet usage, user-owned data, on-device processing
+- **Multi-Vendor Support**: Amazon and Walmart integration with price comparison
+
+## 📋 Current Status: Phase 1 - Foundation ✅
+
+Phase 1 (Foundation) is now complete with the following components:
+
+- ✅ Project structure and directory layout
+- ✅ PyQt6 UI shell with navigation
+- ✅ SQLite database with SQLCipher encryption
+- ✅ Core data models (Inventory, Order, Preference, AuditLog)
+- ✅ Configuration management with encrypted credential storage
+- ✅ Logging and audit trail infrastructure
+- ✅ Initialization scripts
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- Python 3.10 or higher
+- pip (Python package manager)
+- 8GB RAM minimum
+- 10GB disk space
+
+### Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/your-org/p3-edge.git
+   cd p3-edge
+   ```
+
+2. **Create a virtual environment**
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
+
+3. **Install dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. **Initialize the database**
+   ```bash
+   python scripts/init_db.py
+   ```
+
+   You'll be prompted to create a master password for database encryption. Choose a strong password and remember it!
+
+5. **Run the application**
+   ```bash
+   python src/main.py
+   ```
+
+## 📁 Project Structure
+
+```
+p3-edge/
+├── src/
+│   ├── database/          # Database layer with SQLCipher
+│   │   ├── db_manager.py
+│   │   └── schema.sql
+│   ├── models/            # Pydantic data models
+│   │   ├── inventory.py
+│   │   ├── order.py
+│   │   ├── preference.py
+│   │   └── audit_log.py
+│   ├── ui/                # PyQt6 user interface
+│   │   └── main_window.py
+│   ├── config/            # Configuration management
+│   │   └── config_manager.py
+│   ├── utils/             # Utilities (logging, encryption)
+│   │   ├── logger.py
+│   │   └── encryption.py
+│   └── main.py            # Application entry point
+├── scripts/
+│   ├── init_db.py         # Database initialization
+│   └── download_model.py  # Model download (Phase 4)
+├── tests/                 # Unit and integration tests
+├── data/                  # Database storage (encrypted)
+├── logs/                  # Application logs
+├── models/                # ML models (Phase 4)
+├── plan/                  # Project planning documents
+│   ├── Task.txt
+│   ├── My-Plan.txt
+│   └── TECHNICAL_PLAN.md
+├── requirements.txt       # Python dependencies
+├── pyproject.toml        # Project configuration
+└── README.md             # This file
+```
+
+## 🔒 Security & Privacy
+
+P3-Edge is built with privacy as the top priority:
+
+- **Encrypted Database**: All data encrypted at rest with SQLCipher (AES-256)
+- **Secure Credentials**: API credentials encrypted using Fernet symmetric encryption
+- **Local Processing**: All AI inference happens on-device, no cloud dependency
+- **Minimal Internet**: Network access only for price lookups and order placement
+- **Audit Trail**: Complete transparency with audit logs for all system actions
+- **No Telemetry**: Zero data collection or phone-home behavior
+
+## 🏗️ Architecture
+
+### Technology Stack
+
+| Component | Technology | Purpose |
+|-----------|-----------|---------|
+| **Language** | Python 3.10+ | Rapid development, ML ecosystem |
+| **UI Framework** | PyQt6 | Native performance, cross-platform |
+| **Database** | SQLite + SQLCipher | Encrypted local storage |
+| **Data Models** | Pydantic | Type safety, validation |
+| **Encryption** | cryptography (Fernet) | Credential and data encryption |
+| **Logging** | Python logging | Structured logging with rotation |
+| **Testing** | pytest | Unit and integration tests |
+
+### Database Schema
+
+The application uses an encrypted SQLite database with the following core tables:
+
+- **inventory**: Current household items and their quantities
+- **inventory_history**: Time-series consumption data
+- **forecasts**: Predicted run-out dates and recommendations
+- **orders**: Shopping cart and order history
+- **preferences**: User settings and preferences
+- **audit_log**: Complete audit trail of all actions
+- **model_metadata**: ML model versions and performance
+- **vendor_products**: Cached product information from vendors
+- **conversations**: LLM chat history (auto-purged after 30 days)
+
+## 🎯 Development Roadmap
+
+### ✅ Phase 1: Foundation (Weeks 1-2) - COMPLETE
+- Project setup and structure
+- Database with encryption
+- Core data models
+- Basic UI shell
+- Configuration management
+- Logging infrastructure
+
+### 🔄 Phase 2: Data Ingestion (Weeks 3-4) - NEXT
+- Manual inventory entry UI
+- Receipt OCR pipeline
+- Smart fridge API simulator
+- Phone app stub for image upload
+- Data validation and normalization
+
+### 📅 Phase 3: Forecasting Engine (Weeks 5-6)
+- State space model implementation
+- Online learning trainer
+- Forecast generation and visualization
+- Model checkpointing
+
+### 🤖 Phase 4: LLM Integration (Weeks 7-8)
+- Gemma 3n model download and quantization
+- Conversational interface
+- Feature suggestion module
+- Decision explanation generator
+
+### 🛒 Phase 5: E-Commerce Integration (Weeks 9-10)
+- Amazon SP-API client
+- Walmart API client
+- Price comparison
+- Order placement
+
+### 🔐 Phase 6: Privacy & Controls (Week 11)
+- End-to-end encryption for phone sync
+- Vendor controls
+- Approval modes
+- Audit log viewer
+
+### ✨ Phase 7: Refinement & Testing (Week 12)
+- Comprehensive testing
+- Performance optimization
+- Documentation
+- Demo preparation
+
+## 🧪 Testing
+
+Run the test suite:
+
+```bash
+# Run all tests
+pytest
+
+# Run with coverage
+pytest --cov=src --cov-report=html
+
+# Run specific test file
+pytest tests/test_database.py
+```
+
+## 📝 Configuration
+
+Configuration is managed through `config/app_config.json` and environment variables. Key settings:
+
+```json
+{
+  "database": {
+    "path": "data/p3edge.db",
+    "encrypted": true
+  },
+  "forecasting": {
+    "update_interval_hours": 24,
+    "confidence_threshold": 0.7
+  },
+  "orders": {
+    "approval_threshold": 50.0
+  },
+  "privacy": {
+    "conversation_retention_days": 30,
+    "data_retention_days": 365
+  }
+}
+```
+
+## 🔧 Development
+
+### Code Quality
+
+The project uses the following tools:
+
+- **ruff**: Linting and code quality checks
+- **black**: Code formatting
+- **mypy**: Static type checking
+
+Run code quality checks:
+
+```bash
+# Format code
+black src tests
+
+# Lint code
+ruff check src tests
+
+# Type check
+mypy src
+```
+
+### Adding New Features
+
+1. Create a new branch
+2. Implement feature with tests
+3. Run code quality checks
+4. Update documentation
+5. Submit pull request
+
+## 📚 Documentation
+
+- [Technical Plan](plan/TECHNICAL_PLAN.md) - Comprehensive technical architecture
+- [Task Requirements](plan/Task.txt) - Original project requirements
+- [Vision Document](plan/My-Plan.txt) - Project vision and implementation notes
+
+## 🤝 Contributing
+
+Contributions are welcome! Please:
+
+1. Fork the repository
+2. Create a feature branch
+3. Write tests for new functionality
+4. Ensure all tests pass
+5. Submit a pull request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🙏 Acknowledgments
+
+- Built with PyQt6 for the user interface
+- Uses SQLCipher for database encryption
+- Pydantic for data validation
+- Inspired by privacy-first edge computing principles
+
+## 📞 Support
+
+For questions or issues:
+
+- Create an issue on GitHub
+- Check existing documentation in `plan/`
+- Review the technical plan for architecture details
+
+---
+
+**Note**: This project is in active development. Phase 1 (Foundation) is complete. Phase 2 (Data Ingestion) begins next.
+
+**Privacy First. Edge Computing. Autonomous Intelligence.**
