@@ -23,7 +23,9 @@ from PyQt6.QtWidgets import (
 
 from src.database.db_manager import DatabaseManager
 from src.services import InventoryService
+from src.services.forecast_service import ForecastService
 from src.ui.inventory_page import InventoryPage
+from src.ui.forecast_page import ForecastPage
 from src.utils import get_logger
 
 
@@ -44,6 +46,7 @@ class MainWindow(QMainWindow):
         # Store dependencies
         self.db_manager = db_manager
         self.inventory_service = InventoryService(db_manager) if db_manager else None
+        self.forecast_service = ForecastService(db_manager) if db_manager else None
         self.logger = get_logger("main_window")
 
         # Create central widget and layout
@@ -144,7 +147,7 @@ class MainWindow(QMainWindow):
         self.pages = {
             "dashboard": self._create_dashboard_page(),
             "inventory": InventoryPage(self.inventory_service) if self.inventory_service else self._create_placeholder_page("Inventory Management"),
-            "forecasts": self._create_placeholder_page("Forecast View"),
+            "forecasts": ForecastPage(self.forecast_service) if self.forecast_service else self._create_placeholder_page("Forecast View"),
             "shopping_cart": self._create_placeholder_page("Shopping Cart"),
             "order_history": self._create_placeholder_page("Order History"),
             "settings": self._create_placeholder_page("Settings"),
