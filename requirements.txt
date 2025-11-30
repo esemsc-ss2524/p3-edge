@@ -38,6 +38,15 @@ python-Levenshtein>=0.23.0
 # HTTP Client
 httpx>=0.25.2
 
+# Phase 3: Forecasting Engine
+# Machine Learning
+torch>=2.1.0
+scipy>=1.11.4
+pandas>=2.1.4
+
+# Visualization
+matplotlib>=3.8.2
+
 # Development Tools
 pytest>=7.4.3
 pytest-qt>=4.2.0
