@@ -8,13 +8,16 @@ Autonomous grocery shopping assistant with edge AI.
 import sys
 from pathlib import Path
 
+# Add project root to Python path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 from PyQt6.QtWidgets import QApplication
 
-from config import get_config_manager
-from database.db_manager import create_database_manager
-from models import ActionType, Actor, create_audit_log
-from ui import MainWindow
-from utils import get_audit_logger, get_logger
+from src.config import get_config_manager
+from src.database.db_manager import create_database_manager
+from src.models import ActionType, Actor, create_audit_log
+from src.ui import MainWindow
+from src.utils import get_audit_logger, get_logger
 
 
 class P3EdgeApplication:

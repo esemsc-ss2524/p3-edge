@@ -11,7 +11,7 @@ from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Optional
 
-from ..config.config_manager import get_config_manager
+from src.config.config_manager import get_config_manager
 
 
 class P3EdgeLogger:
