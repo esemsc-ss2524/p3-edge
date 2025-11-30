@@ -1,0 +1,41 @@
+{
+  "app_version": "0.1.0",
+  "database": {
+    "path": "data/p3edge.db",
+    "encrypted": true,
+    "backup_enabled": true,
+    "backup_interval_days": 7
+  },
+  "ui": {
+    "theme": "light",
+    "font_size": 12,
+    "window_width": 1024,
+    "window_height": 768
+  },
+  "data_sources": {
+    "smart_fridge_enabled": false,
+    "smart_fridge_api_url": "",
+    "receipt_scan_enabled": true,
+    "email_parsing_enabled": false
+  },
+  "forecasting": {
+    "update_interval_hours": 24,
+    "confidence_threshold": 0.7,
+    "forecast_horizon_days": 30
+  },
+  "orders": {
+    "auto_approval_enabled": false,
+    "approval_threshold": 50.0,
+    "max_daily_orders": 2
+  },
+  "privacy": {
+    "conversation_retention_days": 30,
+    "data_retention_days": 365,
+    "telemetry_enabled": false
+  },
+  "logging": {
+    "level": "INFO",
+    "max_file_size_mb": 10,
+    "backup_count": 5
+  }
+}
