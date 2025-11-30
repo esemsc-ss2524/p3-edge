@@ -1,0 +1,38 @@
+Task:
+Build an autonomous home shopping agent that revolutionizes household management by
+leveraging AI to track inventory, predict needs, and execute seamless orders—empowering
+users with smarter, privacy-first grocery shopping.
+Create innovative AI agents that act as personal shopping assistants
+for the home. Drawing from real-world data sources like smart appliances and user inputs, your
+project should automate the tedious parts of grocery shopping while putting control firmly in the user's
+hands. 
+
+This bounty track rewards projects that build functional prototypes of an AI-Robot Shopping Assistant,
+focusing on groceries via Amazon and Walmart integrations. Your agent should intelligently manage
+household needs, learn from user behavior, and operate with robust privacy safeguards. Whether
+you're enhancing inventory tracking or fine-tuning preference-based recommendations, we're looking
+for solutions that make everyday shopping effortless and efficient.
+
+Requirements
+To qualify, your submission must meet these core standards—ensuring a working MVP that
+aligns with the theme:
+1. Core Functionality: Implement inventory tracking (e.g., via smart-fridge/pantry APIs or
+simulated data), need prediction (using simple ML models), and order placement with user
+approval flows for Amazon and Walmart.
+2. Inputs Integration: Support at least two input sources, such as receipt/email scans (via OCR
+or API parsing) and manual edits through a simple UI.
+3. Actions & Controls: Include run-out forecasting, cart building with brand preferences, and
+controls like spend caps, vendor allowlists, approval modes, and an audit log.
+4. Privacy Focus: Demonstrate encrypted data handling, user-owned storage, and on-device
+processing (e.g., via edge ML libraries).
+5. MVP Scope: Limit to groceries only; include live demos of Amazon/Walmart API integrations
+(use sandbox/test accounts).
+
+Not Allowed
+Keep your project focused and ethical—avoid these pitfalls:
+1. No mockups, PPTs, or non-functional prototypes; must be a runnable MVP.
+2. No expansions beyond groceries (e.g., no clothing or electronics).
+3. No hard-coded orders without user approval simulations.
+4. No use of real user data without explicit consent mocks; prioritize synthetic testing.
+5. No integrations outside Amazon/Walmart for the MVP.
+6. Incomplete privacy measures (e.g., unencrypted logs) will disqualify.

@@ -1,0 +1,28 @@
+grocery AI robot
+
+Broad concept
+- To be deployed as an edge computing device (like a touch screen robot) - but for now, MVP will be run on laptop with mouse interactons 
+- edge llm for conversations - gemma 3n with max quantisation running without GPU
+- state space prob models for forecasting - online models, trained continuously on the data fetched realtime from the smart refrig API
+- llm handles training and inference of ML models
+- input features grow with time, suggested by the llm, 
+- llm makes forecasts, sees how accurate they are, makes adjustments
+- robots asks the user
+	- on very first startup ~10 questions for quick setup
+	- occasionally about what it thinks would be needed
+- sees how the user perceives the forecasts
+- if the user is buying at suggested times
+- login based integration with amazon, Walmart
+
+... rest of the requirements in the `Task.txt`
+
+
+Next steps (after core implementation)
+- Flare - character based AI robot which will help managing groceries
+
+
+My thoughts on implementation
+- qt (C++ or pyqt) for UI - sleek, lightweight - suitable for edge devices
+- pytorch (without gpu/cuda) for edge LLM (gemma 3n)
+- lightweight but powerful OCR model (gemma 3n accepts image input, but is it viable to use gemma 3n in terms of performance?)
+- pytorch based state space models / any other suitable model - for forecasting tasks - helpful if possible to train online
