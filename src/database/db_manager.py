@@ -60,12 +60,13 @@ class DatabaseManager:
             # Set cipher settings for better security
             conn.execute("PRAGMA cipher_page_size = 4096")
             conn.execute("PRAGMA kdf_iter = 256000")
+            # Use sqlcipher's Row class for encrypted connections
+            conn.row_factory = sqlcipher.Row
         else:
             conn = sqlite3.connect(str(self.db_path))
             conn.execute("PRAGMA foreign_keys = ON")
-
-        # Enable row factory for dict-like access
-        conn.row_factory = sqlite3.Row
+            # Use sqlite3's Row class for unencrypted connections
+            conn.row_factory = sqlite3.Row
 
         try:
             yield conn
