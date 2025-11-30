@@ -187,7 +187,8 @@ class ReceiptOCR:
         pil_image = Image.fromarray(image)
 
         # Tesseract config for receipts
-        custom_config = r"--oem 3 --psm 6 -c tessedit_char_whitelist=0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz.,$@-' "
+        # Allow common receipt characters without problematic quotes
+        custom_config = r"--oem 3 --psm 6 -c tessedit_char_whitelist=0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz.,$@- "
 
         # Perform OCR
         text = pytesseract.image_to_string(pil_image, config=custom_config)
