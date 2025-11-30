@@ -51,10 +51,11 @@ Phase 1 (Foundation) is now complete with the following components:
 
 3. **Install dependencies**
    
-   You might need to install SQLCipher C library and headers
+   You might need to install SQLCipher C library and headers, Tesseract
    ```bash
    sudo apt update
    sudo apt install sqlcipher libsqlcipher-dev
+   sudo apt install tesseract-ocr 
    ```
 
    Python libraries:
