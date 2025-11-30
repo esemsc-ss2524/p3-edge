@@ -25,6 +25,7 @@ from PyQt6.QtWidgets import (
 from src.ingestion import ReceiptItem, process_receipt_image
 from src.models import InventoryItem
 from src.services import InventoryService
+from src.utils import ItemMatcher
 
 
 class ReceiptUploadDialog(QDialog):
@@ -42,6 +43,7 @@ class ReceiptUploadDialog(QDialog):
         self.inventory_service = inventory_service
         self.extracted_items: List[ReceiptItem] = []
         self.receipt_path: Optional[str] = None
+        self.item_matcher = ItemMatcher(similarity_threshold=85)
 
         self.setWindowTitle("Upload Receipt")
         self.setMinimumSize(800, 600)
@@ -242,13 +244,19 @@ class ReceiptUploadDialog(QDialog):
             self.items_table.setItem(row, 5, conf_item)
 
     def _on_add_to_inventory(self) -> None:
-        """Handle add to inventory button click."""
+        """Handle add to inventory button click with duplicate detection."""
         try:
             added_count = 0
+            updated_count = 0
+            skipped_count = 0
+
+            # Get all existing inventory items for matching
+            existing_items = self.inventory_service.get_all_items()
 
             for row in range(self.items_table.rowCount()):
                 # Check if item is selected
                 if self.items_table.item(row, 0).checkState() != Qt.CheckState.Checked:
+                    skipped_count += 1
                     continue
 
                 # Get item data from table
@@ -257,6 +265,7 @@ class ReceiptUploadDialog(QDialog):
                 unit = self.items_table.item(row, 3).text().strip() or None
 
                 if not name:
+                    skipped_count += 1
                     continue
 
                 try:
@@ -264,24 +273,49 @@ class ReceiptUploadDialog(QDialog):
                 except ValueError:
                     qty = 1.0
 
-                # Create inventory item
-                inventory_item = InventoryItem(
-                    name=name,
-                    quantity_current=qty,
-                    unit=unit,
-                    category=None,  # Could be inferred or categorized
-                    location="Unknown",  # User can edit later
-                )
+                # Check for duplicate using fuzzy matching
+                match = self.item_matcher.find_match(name, existing_items)
 
-                # Add to database
-                self.inventory_service.create_item(inventory_item)
-                added_count += 1
+                if match:
+                    # Update existing item
+                    existing_item, similarity = match
+                    new_quantity = existing_item.quantity_current + qty
 
-            if added_count > 0:
+                    # Update quantity
+                    self.inventory_service.update_quantity(
+                        existing_item.item_id,
+                        new_quantity,
+                        source="receipt",
+                        notes=f"Added from receipt (matched '{name}' with {similarity}% similarity)"
+                    )
+                    updated_count += 1
+
+                else:
+                    # Create new inventory item
+                    inventory_item = InventoryItem(
+                        name=name,
+                        quantity_current=qty,
+                        unit=unit,
+                        category=None,  # Could be inferred or categorized
+                        location="Unknown",  # User can edit later
+                    )
+
+                    # Add to database
+                    self.inventory_service.create_item(inventory_item)
+                    added_count += 1
+
+            # Build success message
+            if added_count > 0 or updated_count > 0:
+                message_parts = []
+                if added_count > 0:
+                    message_parts.append(f"Added {added_count} new item{'s' if added_count != 1 else ''}")
+                if updated_count > 0:
+                    message_parts.append(f"Updated {updated_count} existing item{'s' if updated_count != 1 else ''}")
+
                 QMessageBox.information(
                     self,
                     "Success",
-                    f"Added {added_count} items to inventory!",
+                    " and ".join(message_parts) + "!",
                 )
                 self.accept()
             else:
