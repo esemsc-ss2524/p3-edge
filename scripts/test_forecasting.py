@@ -237,14 +237,31 @@ def main():
     print("FORECASTING ENGINE TEST")
     print("=" * 80)
 
-    # Initialize database
-    print("\nInitializing database...")
-    db_manager = create_database_manager()
+    # Clean up any existing test database
+    test_db_path = Path("data/p3edge_test.db")
+    if test_db_path.exists():
+        print("\nCleaning up existing test database...")
+        test_db_path.unlink()
+        print("  ✓ Old database removed")
+
+    # Initialize database (unencrypted for testing)
+    print("\nInitializing test database...")
+    db_manager = create_database_manager(
+        db_path=str(test_db_path),
+        encryption_key=None  # Unencrypted for testing
+    )
+    db_manager.initialize_database()
     print("  ✓ Database initialized")
 
-    # Create services
+    # Create services with test model directory
+    test_model_dir = Path("data/test_models")
+    if test_model_dir.exists():
+        import shutil
+        shutil.rmtree(test_model_dir)
+        print("  ✓ Old models removed")
+
     inventory_service = InventoryService(db_manager)
-    forecast_service = ForecastService(db_manager)
+    forecast_service = ForecastService(db_manager, model_dir=test_model_dir)
 
     # Create sample items
     items = create_sample_items(inventory_service)
