@@ -13,6 +13,8 @@ Broad concept
 - sees how the user perceives the forecasts
 - if the user is buying at suggested times
 - login based integration with amazon, Walmart
+- internet only used for fetching prices and placing orders
+- wifi / internet to fetch images from a simple phoneapp which will give receipts etc images
 
 ... rest of the requirements in the `Task.txt`
 
