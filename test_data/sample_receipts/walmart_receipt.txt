@@ -1,0 +1,45 @@
+           WALMART SUPERCENTER
+           123 MAIN STREET
+         ANYTOWN, CA 12345
+         (555) 123-4567
+
+    ALWAYS LOW PRICES
+
+------------------------------------------
+
+GROCERY
+
+ORGANIC MILK GALLON        $5.99
+LARGE EGGS DOZEN           $3.49
+CHEDDAR CHEESE 1LB         $6.99
+GREEK YOGURT 32OZ          $4.99
+BABY CARROTS 1LB           $1.99
+ROMAINE LETTUCE            $2.49
+STRAWBERRIES 1LB           $4.99
+ORANGE JUICE 64OZ          $3.99
+CHICKEN BREAST 2LB         $9.98
+GROUND BEEF 80/20 1LB      $5.99
+BUTTER STICKS 1LB          $4.49
+HEINZ KETCHUP 32OZ         $3.29
+
+------------------------------------------
+
+SUBTOTAL                   $58.66
+TAX                        $4.52
+------------------------------------------
+TOTAL                      $63.18
+
+VISA ENDING 1234           $63.18
+
+------------------------------------------
+
+         THANK YOU FOR SHOPPING
+            AT WALMART!
+
+         Visit walmart.com
+
+TRANSACTION #: 12345-67890
+CASHIER: JANE DOE
+DATE: 11/30/2025  TIME: 14:35
+
+ITEMS SOLD: 12
