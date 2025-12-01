@@ -26,6 +26,7 @@ from src.services import InventoryService
 from src.services.forecast_service import ForecastService
 from src.ui.inventory_page import InventoryPage
 from src.ui.forecast_page import ForecastPage
+from src.ui.smart_fridge_page import SmartFridgePage
 from src.utils import get_logger
 
 
@@ -119,6 +120,7 @@ class MainWindow(QMainWindow):
             ("Forecasts", self.show_forecasts),
             ("Shopping Cart", self.show_shopping_cart),
             ("Order History", self.show_order_history),
+            ("Smart Fridge", self.show_smart_fridge),
             ("Settings", self.show_settings),
         ]
 
@@ -150,11 +152,20 @@ class MainWindow(QMainWindow):
             "forecasts": ForecastPage(self.forecast_service) if self.forecast_service else self._create_placeholder_page("Forecast View"),
             "shopping_cart": self._create_placeholder_page("Shopping Cart"),
             "order_history": self._create_placeholder_page("Order History"),
+            "smart_fridge": SmartFridgePage(self.db_manager) if self.db_manager else self._create_placeholder_page("Smart Refrigerator"),
             "settings": self._create_placeholder_page("Settings"),
         }
 
         for page in self.pages.values():
             self.content_stack.addWidget(page)
+
+        # Connect smart fridge signals
+        if "smart_fridge" in self.pages and hasattr(self.pages["smart_fridge"], "connection_widget"):
+            smart_fridge_page = self.pages["smart_fridge"]
+            if hasattr(smart_fridge_page, "connection_widget"):
+                smart_fridge_page.connection_widget.connection_changed.connect(
+                    self._on_smart_fridge_connection_changed
+                )
 
         self.main_layout.addWidget(self.content_stack)
 
@@ -304,6 +315,17 @@ class MainWindow(QMainWindow):
         self.setStatusBar(self.status_bar)
         self.status_bar.showMessage("Ready")
 
+        # Add smart fridge connection indicator
+        self.fridge_status_label = QLabel("🔴 Smart Fridge: Disconnected")
+        self.fridge_status_label.setStyleSheet("""
+            QLabel {
+                padding: 2px 10px;
+                color: #7f8c8d;
+                font-size: 11px;
+            }
+        """)
+        self.status_bar.addPermanentWidget(self.fridge_status_label)
+
     def _create_menu_bar(self) -> None:
         """Create the menu bar."""
         menubar = self.menuBar()
@@ -383,6 +405,11 @@ class MainWindow(QMainWindow):
         self.content_stack.setCurrentWidget(self.pages["order_history"])
         self.status_bar.showMessage("Order History")
 
+    def show_smart_fridge(self) -> None:
+        """Show the smart fridge page."""
+        self.content_stack.setCurrentWidget(self.pages["smart_fridge"])
+        self.status_bar.showMessage("Smart Refrigerator")
+
     def show_settings(self) -> None:
         """Show the settings page."""
         self.content_stack.setCurrentWidget(self.pages["settings"])
@@ -409,3 +436,24 @@ class MainWindow(QMainWindow):
             "<p>Version 0.1.0</p>"
             "<p>Privacy-first edge computing solution for household management.</p>"
         )
+
+    def _on_smart_fridge_connection_changed(self, connected: bool) -> None:
+        """Handle smart fridge connection status change."""
+        if connected:
+            self.fridge_status_label.setText("🟢 Smart Fridge: Connected")
+            self.fridge_status_label.setStyleSheet("""
+                QLabel {
+                    padding: 2px 10px;
+                    color: #27ae60;
+                    font-size: 11px;
+                }
+            """)
+        else:
+            self.fridge_status_label.setText("🔴 Smart Fridge: Disconnected")
+            self.fridge_status_label.setStyleSheet("""
+                QLabel {
+                    padding: 2px 10px;
+                    color: #7f8c8d;
+                    font-size: 11px;
+                }
+            """)

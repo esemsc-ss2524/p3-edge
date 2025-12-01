@@ -37,6 +37,10 @@ python-Levenshtein>=0.23.0
 
 # HTTP Client
 httpx>=0.25.2
+requests>=2.31.0
+
+# Smart Fridge Simulator
+flask>=3.0.0
 
 # Phase 3: Forecasting Engine
 # Machine Learning
