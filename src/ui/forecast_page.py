@@ -149,10 +149,15 @@ class ForecastPage(QWidget):
             # Get item name
             item_name = self._get_item_name(forecast.item_id)
 
-            # Get current quantity and consumption rate
+            # Get current quantity
             item_data = self.forecast_service._get_item_data(forecast.item_id)
             current_qty = item_data.get("quantity_current", 0) if item_data else 0
-            consumption_rate = item_data.get("consumption_rate", 0) if item_data else 0
+
+            # Get consumption rate from model state (not in inventory table)
+            consumption_rate = None
+            if forecast.item_id in self.forecast_service.trainer.models:
+                state = self.forecast_service.trainer.models[forecast.item_id]["state"]
+                consumption_rate = state[1].item()  # consumption_rate is state[1]
 
             # Item name
             self.table.setItem(row, 0, QTableWidgetItem(item_name))
@@ -163,7 +168,10 @@ class ForecastPage(QWidget):
             self.table.setItem(row, 1, qty_item)
 
             # Consumption rate
-            rate_item = QTableWidgetItem(f"{consumption_rate:.2f}/day")
+            if consumption_rate is not None:
+                rate_item = QTableWidgetItem(f"{consumption_rate:.2f}/day")
+            else:
+                rate_item = QTableWidgetItem("N/A")
             rate_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.table.setItem(row, 2, rate_item)
 
@@ -198,17 +206,21 @@ class ForecastPage(QWidget):
             self.table.setItem(row, 4, days_item)
 
             # Confidence
-            confidence_pct = forecast.confidence * 100
-            conf_item = QTableWidgetItem(f"{confidence_pct:.1f}%")
-            conf_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            if forecast.confidence is not None:
+                confidence_pct = forecast.confidence * 100
+                conf_item = QTableWidgetItem(f"{confidence_pct:.1f}%")
+                conf_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
 
-            # Color code confidence
-            if confidence_pct >= 80:
-                conf_item.setBackground(QColor(200, 255, 200))  # Green
-            elif confidence_pct >= 50:
-                conf_item.setBackground(QColor(255, 255, 200))  # Yellow
+                # Color code confidence
+                if confidence_pct >= 80:
+                    conf_item.setBackground(QColor(200, 255, 200))  # Green
+                elif confidence_pct >= 50:
+                    conf_item.setBackground(QColor(255, 255, 200))  # Yellow
+                else:
+                    conf_item.setBackground(QColor(255, 200, 200))  # Red
             else:
-                conf_item.setBackground(QColor(255, 200, 200))  # Red
+                conf_item = QTableWidgetItem("N/A")
+                conf_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
 
             self.table.setItem(row, 5, conf_item)
 
@@ -270,9 +282,12 @@ class ForecastPage(QWidget):
             item_name = self._get_item_name(forecast.item_id)
             days_until = (forecast.predicted_runout_date - datetime.now().date()).days
 
+            # Handle None confidence
+            conf_str = f"{forecast.confidence*100:.0f}%" if forecast.confidence is not None else "N/A"
+
             alert_messages.append(
                 f"⚠️ {item_name}: Running out in {days_until} days "
-                f"(Confidence: {forecast.confidence*100:.0f}%)"
+                f"(Confidence: {conf_str})"
             )
 
         self.alerts_label.setText("\n".join(alert_messages))
