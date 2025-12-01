@@ -143,7 +143,7 @@ def simulate_consumption(
             inventory_service.update_quantity(
                 item.item_id,
                 new_quantity,
-                source="simulated",
+                source="manual",
                 notes=f"Day {day + 1} consumption",
             )
 
@@ -151,7 +151,7 @@ def simulate_consumption(
             forecast_service.update_with_observation(
                 item.item_id,
                 new_quantity,
-                source="simulated",
+                source="manual",
                 timestamp=current_date,
             )
 

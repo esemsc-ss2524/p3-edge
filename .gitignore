@@ -69,3 +69,6 @@ htmlcov/
 
 # OS
 Thumbs.db
+
+# test models
+data/test_models/
