@@ -275,11 +275,16 @@ class SmartFridgeConnectionWidget(QWidget):
         if not self.fridge_service:
             return
 
-        if self.fridge_service._polling:
+        # Check polling status from connection info
+        info = self.fridge_service.get_connection_info()
+        is_polling = info.get("polling", False)
+
+        if is_polling:
             # Stop polling
             self.fridge_service.stop_polling()
             self._log("✓ Auto-sync stopped")
             self.polling_btn.setText("Start Auto-Sync")
+            self.refresh_timer.stop()  # Stop UI refresh
         else:
             # Start polling
             if self.fridge_service.start_polling():
