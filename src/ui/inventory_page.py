@@ -156,7 +156,7 @@ class InventoryPage(QWidget):
         Args:
             items: Optional list of items to display (None loads all items)
         """
-        if items is None:
+        if items is None or isinstance(items, bool):
             items = self.inventory_service.get_all_items()
 
         self.table.setRowCount(len(items))

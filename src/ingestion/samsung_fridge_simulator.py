@@ -22,6 +22,9 @@ from enum import Enum
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, asdict
 
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from flask import Flask, jsonify, request
 
 from src.utils import get_logger
