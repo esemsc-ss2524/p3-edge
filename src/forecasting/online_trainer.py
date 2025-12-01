@@ -24,6 +24,9 @@ class OnlineForecastTrainer:
 
     Each item gets its own model instance that is continuously updated
     as new inventory observations arrive.
+
+    Supports loading pre-trained models from models/pretrained/ for warm-start
+    forecasting when no user history is available.
     """
 
     def __init__(
@@ -31,6 +34,7 @@ class OnlineForecastTrainer:
         model_dir: Path,
         ewma_alpha: float = 0.3,
         retrain_interval_days: int = 7,
+        pretrained_dir: Optional[Path] = None,
     ):
         """
         Initialize the online trainer.
@@ -39,6 +43,7 @@ class OnlineForecastTrainer:
             model_dir: Directory to store model checkpoints
             ewma_alpha: Exponential weighted moving average coefficient (0-1)
             retrain_interval_days: Days between full retraining
+            pretrained_dir: Directory with pre-trained models (defaults to models/pretrained)
         """
         self.model_dir = Path(model_dir)
         self.model_dir.mkdir(parents=True, exist_ok=True)
@@ -46,10 +51,73 @@ class OnlineForecastTrainer:
         self.ewma_alpha = ewma_alpha
         self.retrain_interval_days = retrain_interval_days
 
+        # Pre-trained models directory
+        if pretrained_dir is None:
+            pretrained_dir = Path("models/pretrained")
+        self.pretrained_dir = Path(pretrained_dir)
+
         # Model registry: item_id -> (model, state, last_trained, performance)
         self.models: Dict[str, Dict[str, Any]] = {}
 
         self.logger = get_logger("online_trainer")
+
+        # Log pre-trained models availability
+        if self.pretrained_dir.exists():
+            pretrained_count = len(list(self.pretrained_dir.glob("pretrained_*.pt")))
+            if pretrained_count > 0:
+                self.logger.info(
+                    f"Found {pretrained_count} pre-trained models in {self.pretrained_dir}"
+                )
+
+    def _load_pretrained_model(self, category: str) -> Optional[ConsumptionForecaster]:
+        """
+        Load a pre-trained model for a category.
+
+        Args:
+            category: Item category (Dairy, Produce, Protein, etc.)
+
+        Returns:
+            Pre-trained model or None if not found
+        """
+        # Try exact category match first
+        pretrained_path = self.pretrained_dir / f"pretrained_{category}_Products.pt"
+        if not pretrained_path.exists():
+            # Try other common naming patterns
+            patterns = [
+                f"pretrained_{category}.pt",
+                f"pretrained_Fresh_{category}.pt",
+                f"pretrained_{category}_Sources.pt",
+            ]
+            for pattern in patterns:
+                test_path = self.pretrained_dir / pattern
+                if test_path.exists():
+                    pretrained_path = test_path
+                    break
+            else:
+                return None
+
+        try:
+            checkpoint = torch.load(pretrained_path)
+
+            # Create model and load state
+            model = ConsumptionForecaster(
+                state_dim=4,
+                feature_dim=8,
+                process_noise_std=0.1,
+                obs_noise_std=0.05,
+                learning_rate=0.001,
+            )
+            model.load_state_dict(checkpoint["model_state_dict"])
+            model.state_cov = checkpoint["state_cov"]
+
+            self.logger.info(
+                f"Loaded pre-trained model for category '{category}' from {pretrained_path.name}"
+            )
+            return model
+
+        except Exception as e:
+            self.logger.warning(f"Failed to load pre-trained model for {category}: {e}")
+            return None
 
     def get_or_create_model(
         self,
@@ -58,6 +126,9 @@ class OnlineForecastTrainer:
     ) -> Tuple[ConsumptionForecaster, torch.Tensor]:
         """
         Get existing model for item or create a new one.
+
+        If no model exists, tries to load a pre-trained model for the category
+        before creating a new one from scratch.
 
         Args:
             item_id: Unique item identifier
@@ -69,14 +140,25 @@ class OnlineForecastTrainer:
         if item_id in self.models:
             return self.models[item_id]["model"], self.models[item_id]["state"]
 
-        # Create new model
-        model = ConsumptionForecaster(
-            state_dim=4,
-            feature_dim=8,
-            process_noise_std=0.1,
-            obs_noise_std=0.05,
-            learning_rate=0.001,
-        )
+        # Try to load pre-trained model for this category
+        category = item_data.get("category", "")
+        model = None
+        used_pretrained = False
+
+        if category and self.pretrained_dir.exists():
+            model = self._load_pretrained_model(category)
+            if model:
+                used_pretrained = True
+
+        # Create new model if no pre-trained model found
+        if model is None:
+            model = ConsumptionForecaster(
+                state_dim=4,
+                feature_dim=8,
+                process_noise_std=0.1,
+                obs_noise_std=0.05,
+                learning_rate=0.001,
+            )
 
         # Initialize state
         current_quantity = item_data.get("quantity_current", 0.0)
@@ -91,9 +173,15 @@ class OnlineForecastTrainer:
             "last_retrained": datetime.now(),
             "observations": [],
             "errors": [],
+            "pretrained": used_pretrained,
         }
 
-        self.logger.info(f"Created new model for item {item_id}")
+        if used_pretrained:
+            self.logger.info(
+                f"Created model for item {item_id} using pre-trained {category} model"
+            )
+        else:
+            self.logger.info(f"Created new model for item {item_id}")
 
         return model, state
 
@@ -418,3 +506,71 @@ class OnlineForecastTrainer:
             "ewma_error": self._compute_ewma(errors),
             "n_observations": len(self.models[item_id]["observations"]),
         }
+
+    def train_all_models(
+        self,
+        items_data: List[Dict[str, Any]],
+        force_retrain: bool = False,
+    ) -> Dict[str, Any]:
+        """
+        Train or retrain models for all items with sufficient history.
+
+        This method can be triggered manually by the user or run on a schedule.
+
+        Args:
+            items_data: List of item data dictionaries with item_id and metadata
+            force_retrain: If True, retrain even if recent training exists
+
+        Returns:
+            Dictionary with training summary
+        """
+        self.logger.info(f"Starting training for {len(items_data)} items...")
+
+        results = {
+            "trained": 0,
+            "skipped": 0,
+            "failed": 0,
+            "items": [],
+        }
+
+        for item_data in items_data:
+            item_id = item_data.get("item_id")
+            if not item_id:
+                continue
+
+            try:
+                # Check if model already exists
+                if item_id in self.models and not force_retrain:
+                    # Check if recent training exists
+                    last_retrained = self.models[item_id]["last_retrained"]
+                    days_since = (datetime.now() - last_retrained).days
+
+                    if days_since < self.retrain_interval_days:
+                        results["skipped"] += 1
+                        continue
+
+                # Get or create model (will use pre-trained if available)
+                model, state = self.get_or_create_model(item_id, item_data)
+
+                # If model has observations, retrain from scratch
+                if item_id in self.models and len(self.models[item_id]["observations"]) >= 5:
+                    self._retrain_from_scratch(item_id, item_data)
+
+                results["trained"] += 1
+                results["items"].append({
+                    "item_id": item_id,
+                    "name": item_data.get("name", "Unknown"),
+                    "category": item_data.get("category", "Unknown"),
+                    "pretrained": self.models[item_id].get("pretrained", False),
+                })
+
+            except Exception as e:
+                self.logger.error(f"Failed to train model for {item_id}: {e}")
+                results["failed"] += 1
+
+        self.logger.info(
+            f"Training complete: {results['trained']} trained, "
+            f"{results['skipped']} skipped, {results['failed']} failed"
+        )
+
+        return results
