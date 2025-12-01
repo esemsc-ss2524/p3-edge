@@ -73,31 +73,35 @@ class OnlineForecastTrainer:
         """
         Load a pre-trained model for a category.
 
+        Uses flexible matching to find the best pre-trained model.
+
         Args:
             category: Item category (Dairy, Produce, Protein, etc.)
 
         Returns:
             Pre-trained model or None if not found
         """
-        # Try exact category match first
-        pretrained_path = self.pretrained_dir / f"pretrained_{category}_Products.pt"
-        if not pretrained_path.exists():
-            # Try other common naming patterns
-            patterns = [
-                f"pretrained_{category}.pt",
-                f"pretrained_Fresh_{category}.pt",
-                f"pretrained_{category}_Sources.pt",
-            ]
-            for pattern in patterns:
-                test_path = self.pretrained_dir / pattern
-                if test_path.exists():
-                    pretrained_path = test_path
-                    break
-            else:
-                return None
+        if not self.pretrained_dir.exists():
+            return None
+
+        # Flexible matching - find all candidates
+        candidates = list(self.pretrained_dir.glob(f"*_{category}*.pt"))
+        if not candidates:
+            # Fallback to broad search if exact category missing
+            candidates = list(self.pretrained_dir.glob("pretrained_*.pt"))
+
+        if not candidates:
+            return None
+
+        # Prefer exact match
+        best_path = candidates[0]
+        for path in candidates:
+            if category.lower() in path.name.lower():
+                best_path = path
+                break
 
         try:
-            checkpoint = torch.load(pretrained_path)
+            checkpoint = torch.load(best_path, map_location="cpu")
 
             # Create model and load state
             model = ConsumptionForecaster(
@@ -111,12 +115,12 @@ class OnlineForecastTrainer:
             model.state_cov = checkpoint["state_cov"]
 
             self.logger.info(
-                f"Loaded pre-trained model for category '{category}' from {pretrained_path.name}"
+                f"Loaded pre-trained model for category '{category}' from {best_path.name}"
             )
             return model
 
         except Exception as e:
-            self.logger.warning(f"Failed to load pre-trained model for {category}: {e}")
+            self.logger.error(f"Failed to load pre-trained model from {best_path}: {e}")
             return None
 
     def get_or_create_model(
@@ -174,6 +178,7 @@ class OnlineForecastTrainer:
             "observations": [],
             "errors": [],
             "pretrained": used_pretrained,
+            "prev_qty": current_quantity,  # Track previous quantity for restock detection
         }
 
         if used_pretrained:
@@ -195,6 +200,9 @@ class OnlineForecastTrainer:
         """
         Update model with a new observation (online learning).
 
+        Detects if this is a consumption event (learn) or restock event (reset).
+        This is CRITICAL to prevent model corruption.
+
         Args:
             item_id: Unique item identifier
             observation: Observed quantity
@@ -210,22 +218,42 @@ class OnlineForecastTrainer:
         # Get or create model
         model, state = self.get_or_create_model(item_id, item_data)
 
+        # Get previous quantity for restock detection
+        prev_qty = self.models[item_id].get("prev_qty", state[0].item())
+
+        # RESTOCK DETECTION LOGIC
+        # Inventory increasing = restocking event (not natural consumption)
+        is_restock = observation > (prev_qty + 0.05)  # Small buffer for noise
+
         # Extract features
         features = extract_features(item_data, timestamp)
 
-        # Perform update
-        updated_state, prediction_error = model.update(
-            state,
-            observation,
-            features,
-            perform_learning=True,
-        )
+        if is_restock:
+            # Restocking event - don't learn, just reset state
+            self.logger.info(
+                f"Restock detected for {item_id} ({prev_qty:.2f} -> {observation:.2f}). "
+                f"Resetting state without learning."
+            )
+            updated_state = model.handle_restock(state, observation)
+            prediction_error = 0.0
+        else:
+            # Normal consumption - perform learning
+            updated_state, prediction_error = model.update(
+                state,
+                observation,
+                features,
+                perform_learning=True,
+            )
 
         # Update registry
         self.models[item_id]["state"] = updated_state
+        self.models[item_id]["prev_qty"] = observation  # Track for next comparison
         self.models[item_id]["last_trained"] = timestamp
         self.models[item_id]["observations"].append((observation, timestamp))
-        self.models[item_id]["errors"].append(prediction_error)
+
+        # Only track errors for consumption events (not restocks)
+        if not is_restock:
+            self.models[item_id]["errors"].append(prediction_error)
 
         # Compute EWMA of error for tracking
         errors = self.models[item_id]["errors"]
@@ -338,6 +366,18 @@ class OnlineForecastTrainer:
             Dictionary with forecast results
         """
         model, state = self.get_or_create_model(item_id, item_data)
+
+        # Ensure state matches current database quantity
+        # (handles case where DB was updated but model state wasn't)
+        current_qty = float(item_data.get("quantity_current", 0.0))
+        if abs(state[0].item() - current_qty) > 0.1:
+            self.logger.debug(
+                f"State quantity mismatch for {item_id}: "
+                f"state={state[0].item():.2f}, db={current_qty:.2f}. Resetting."
+            )
+            state = model.handle_restock(state, current_qty)
+            self.models[item_id]["state"] = state
+            self.models[item_id]["prev_qty"] = current_qty
 
         # Generate feature sequence for future dates
         current_date = datetime.now()
@@ -466,6 +506,7 @@ class OnlineForecastTrainer:
                 )),
                 "observations": [],
                 "errors": metadata.get("recent_errors", []),
+                "prev_qty": state[0].item(),  # Initialize previous quantity
             }
 
             self.logger.info(f"Loaded model for item {item_id}")

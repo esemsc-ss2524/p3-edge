@@ -97,12 +97,9 @@ class ConsumptionForecaster(nn.Module):
         # Combine state and features
         state_features = torch.cat([state, features], dim=0)
 
-        # Predict next state (deterministic)
+        # Predict next state (deterministic mean)
         next_state_mean = self.transition(state_features)
-
-        # Add process noise for stochastic prediction
-        process_noise_sample = self.process_noise * torch.randn_like(next_state_mean)
-        next_state = next_state_mean + process_noise_sample
+        next_state = next_state_mean
 
         # Predict observation (quantity)
         predicted_quantity = self.observation(next_state)
@@ -146,6 +143,10 @@ class ConsumptionForecaster(nn.Module):
             # Predict next state (mean)
             state_features = torch.cat([current_state, features], dim=0)
             next_state_mean = self.transition(state_features)
+
+            # Physics constraint: quantity should not increase naturally (no magic restocking)
+            if next_state_mean[0] > current_state[0]:
+                next_state_mean[0] = current_state[0] - max(0.01, current_state[1])
 
             # Predict quantity
             predicted_quantity = self.observation(next_state_mean)
@@ -242,6 +243,26 @@ class ConsumptionForecaster(nn.Module):
 
         return updated_state.detach(), prediction_error
 
+    def handle_restock(self, state: torch.Tensor, new_quantity: float) -> torch.Tensor:
+        """
+        Handle restocking event by resetting quantity but keeping consumption dynamics.
+
+        This prevents model corruption when inventory increases (not natural consumption).
+
+        Args:
+            state: Current state vector
+            new_quantity: New quantity after restocking
+
+        Returns:
+            Updated state vector with new quantity
+        """
+        new_state = state.clone()
+        new_state[0] = new_quantity  # Update quantity
+        # Keep consumption_rate, trend, and seasonal components
+        # Reset covariance to moderate uncertainty
+        self.state_cov = torch.eye(self.state_dim) * 0.1
+        return new_state
+
     def initialize_state(
         self,
         current_quantity: float,
@@ -253,6 +274,7 @@ class ConsumptionForecaster(nn.Module):
         Args:
             current_quantity: Current inventory quantity
             recent_observations: Recent quantity observations for rate estimation
+                               List of (quantity, timestamp) or (quantity,) tuples
 
         Returns:
             Initial state vector [state_dim]
@@ -264,24 +286,32 @@ class ConsumptionForecaster(nn.Module):
 
         # Estimate consumption rate from recent observations
         if recent_observations and len(recent_observations) >= 2:
-            # Linear regression on recent data
-            quantities = [obs for obs, _ in recent_observations]
+            # Sort observations by timestamp if available
+            sorted_obs = sorted(recent_observations, key=lambda x: x[1] if len(x) > 1 else 0)
+            quantities = [obs[0] for obs in sorted_obs]
 
-            # Simple difference-based rate estimation
-            rate_estimates = []
+            # Calculate only consumption drops (ignore restocks)
+            drops = []
             for i in range(len(quantities) - 1):
-                rate_estimates.append(quantities[i] - quantities[i + 1])
+                diff = quantities[i] - quantities[i + 1]
+                if diff > 0:  # Only count decreases (consumption)
+                    drops.append(diff)
 
-            avg_rate = np.mean(rate_estimates) if rate_estimates else 0.0
-            state[1] = avg_rate  # consumption_rate
+            # Average consumption rate
+            if drops:
+                avg_rate = np.mean(drops)
+                state[1] = avg_rate
+            else:
+                # No clear consumption pattern, use default
+                state[1] = 0.1 * max(1.0, current_quantity)
 
-            # Estimate trend (acceleration)
-            if len(rate_estimates) >= 2:
-                trend = rate_estimates[-1] - rate_estimates[0]
-                state[2] = trend / len(rate_estimates)
+            # Estimate trend from drops if enough data
+            if len(drops) >= 2:
+                trend = drops[-1] - drops[0]
+                state[2] = trend / len(drops)
         else:
             # Default: assume moderate consumption rate
-            state[1] = 0.1 * current_quantity  # 10% per time step
+            state[1] = 0.1 * max(1.0, current_quantity)
 
         # Seasonal component (initialized to zero, learned over time)
         state[3] = 0.0
@@ -432,13 +462,25 @@ def extract_features(
     features[5] = 1.0 if item_data.get("perishable", False) else 0.0
 
     # Feature 6: Days until expiry (if perishable)
+    features[6] = 0.5  # Default middle value
     if item_data.get("expiry_date"):
         try:
-            expiry = datetime.fromisoformat(str(item_data["expiry_date"]))
+            exp_val = item_data["expiry_date"]
+            # Handle both string and date types
+            if isinstance(exp_val, str):
+                expiry = datetime.fromisoformat(exp_val)
+            else:
+                # Assume it's a date object, convert to datetime
+                from datetime import date
+                if isinstance(exp_val, date):
+                    expiry = datetime.combine(exp_val, datetime.min.time())
+                else:
+                    expiry = exp_val
+
             days_until_expiry = (expiry - current_date).days
             features[6] = max(0.0, min(1.0, days_until_expiry / 30.0))
-        except:
-            features[6] = 0.5
+        except Exception:
+            pass
 
     # Feature 7: Reserved for future use (e.g., holiday indicator)
     features[7] = 0.0

@@ -2,17 +2,18 @@
 """
 Pre-train Forecasting Models on Synthetic Temporal Data
 
-This script generates realistic temporal consumption data spanning 2 months
-and trains state space models on this data. The trained models are then
-saved and can be used for forecasting on actual user inventory without
-needing extensive historical data first.
+This script generates realistic temporal consumption data and trains models.
+CRITICAL LOGIC: This script separates 'natural consumption' from 'restocking events'.
+The models are trained ONLY on the consumption slope, ensuring they predict run-outs
+correctly rather than predicting magical restocking.
 
 Key Features:
-- Generates data with proper temporal sequences (60 days in the past)
+- Generates data with proper temporal sequences (90 days by default)
 - Creates realistic consumption patterns with daily variations
-- Trains one model per item category (can be applied to similar items)
+- Implements threshold-based restocking (shopping days + low stock)
+- Trains one model per item category
+- CRITICAL: Masks restock events during training to prevent model corruption
 - Saves trained model checkpoints for later use
-- Does NOT insert data into the database (pure training data)
 
 The pre-trained models provide a "warm start" for forecasting, allowing
 the system to make reasonable predictions from day one. As actual user
@@ -26,6 +27,7 @@ import numpy as np
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Tuple
+import argparse
 
 import torch
 
@@ -33,13 +35,11 @@ import torch
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.forecasting.state_space_model import ConsumptionForecaster, extract_features
-from src.forecasting.online_trainer import OnlineForecastTrainer
 from src.utils import get_logger
 
 
 # Synthetic item templates for training
 TRAINING_ITEMS = [
-    # Dairy
     {
         "name": "Dairy_Products",
         "category": "Dairy",
@@ -47,60 +47,56 @@ TRAINING_ITEMS = [
         "base_qty": 2.0,
         "consumption_per_day": 0.28,
         "perishable": True,
-        "shelf_life_days": 7,
         "household_size": 4,
+        "restock_threshold": 0.5
     },
-    # Produce
     {
         "name": "Fresh_Produce",
         "category": "Produce",
         "unit": "lb",
         "base_qty": 3.0,
-        "consumption_per_day": 0.35,
+        "consumption_per_day": 0.45,
         "perishable": True,
-        "shelf_life_days": 5,
         "household_size": 4,
+        "restock_threshold": 0.5
     },
-    # Protein
     {
         "name": "Protein_Sources",
         "category": "Protein",
         "unit": "lb",
-        "base_qty": 2.0,
-        "consumption_per_day": 0.25,
+        "base_qty": 4.0,
+        "consumption_per_day": 0.5,
         "perishable": True,
-        "shelf_life_days": 10,
         "household_size": 4,
+        "restock_threshold": 1.0
     },
-    # Grains
-    {
-        "name": "Grains_Pasta",
-        "category": "Grains",
-        "unit": "lb",
-        "base_qty": 3.0,
-        "consumption_per_day": 0.20,
-        "perishable": False,
-        "shelf_life_days": 365,
-        "household_size": 4,
-    },
-    # Beverages
     {
         "name": "Beverages",
         "category": "Beverages",
         "unit": "oz",
         "base_qty": 64.0,
-        "consumption_per_day": 9.0,
+        "consumption_per_day": 8.0,
         "perishable": True,
-        "shelf_life_days": 7,
         "household_size": 4,
+        "restock_threshold": 16.0
+    },
+    {
+        "name": "Grains_Pasta",
+        "category": "Grains",
+        "unit": "lb",
+        "base_qty": 5.0,
+        "consumption_per_day": 0.15,
+        "perishable": False,
+        "household_size": 4,
+        "restock_threshold": 1.0
     },
 ]
 
 
 class SyntheticTemporalDataGenerator:
-    """Generates synthetic temporal consumption data for model training."""
+    """Generates realistic consumption patterns with threshold-based restocking."""
 
-    def __init__(self, days: int = 60, seed: int = 42):
+    def __init__(self, days: int = 90, seed: int = 42):
         """
         Initialize generator.
 
@@ -116,7 +112,7 @@ class SyntheticTemporalDataGenerator:
         np.random.seed(seed)
         torch.manual_seed(seed)
 
-        # Start date is 60 days in the past
+        # Start date is N days in the past
         self.start_date = datetime.now() - timedelta(days=days)
 
     def generate_consumption_sequence(
@@ -124,7 +120,8 @@ class SyntheticTemporalDataGenerator:
         item_template: Dict
     ) -> List[Tuple[datetime, float]]:
         """
-        Generate realistic consumption sequence with temporal variations.
+        Generate sequence using Threshold-Based Restocking (more realistic).
+        People usually buy when they run low, not just on arbitrary days.
 
         Args:
             item_template: Item configuration
@@ -134,38 +131,31 @@ class SyntheticTemporalDataGenerator:
         """
         sequence = []
         current_qty = item_template["base_qty"]
+        base_rate = item_template["consumption_per_day"]
+        threshold = item_template.get("restock_threshold", 0.5)
 
         for day in range(self.days):
             current_date = self.start_date + timedelta(days=day)
             day_of_week = current_date.weekday()
 
-            # Weekly restocking pattern (Saturdays)
-            if day_of_week == 5:  # Saturday
-                # Restock
-                restock_amount = item_template["base_qty"] * random.uniform(1.5, 2.5)
-                current_qty += restock_amount
+            # 1. Daily consumption
+            daily_factor = 1.3 if day_of_week >= 5 else 1.0  # Weekend boost
+            noise = random.uniform(0.8, 1.2)
+            consumption = base_rate * daily_factor * noise
 
-            # Mid-week restock for highly perishable items
-            elif day_of_week == 2 and item_template["shelf_life_days"] <= 7:
-                if current_qty < item_template["base_qty"] * 0.3:
-                    restock_amount = item_template["base_qty"] * 0.5
-                    current_qty += restock_amount
-
-            # Daily consumption with variations
-            base_consumption = item_template["consumption_per_day"]
-
-            # Weekend effect (30% more on Sat/Sun)
-            if day_of_week >= 5:
-                base_consumption *= 1.3
-
-            # Random variation (±20%)
-            consumption = base_consumption * random.uniform(0.8, 1.2)
-
-            # Apply consumption
             current_qty = max(0, current_qty - consumption)
 
-            # Record observation
             sequence.append((current_date, current_qty))
+
+            # 2. Restock Logic (threshold-based + shopping days)
+            shopping_days = [2, 5, 6]  # Wed, Sat, Sun
+
+            is_shopping_day = day_of_week in shopping_days
+            is_critical = current_qty < (threshold * 0.2)
+
+            if (current_qty < threshold and is_shopping_day) or is_critical:
+                restock_amt = item_template["base_qty"] * random.uniform(0.9, 1.1)
+                current_qty = min(current_qty + restock_amt, item_template["base_qty"] * 1.5)
 
         return sequence
 
@@ -185,7 +175,10 @@ class SyntheticTemporalDataGenerator:
 
 
 class ModelPreTrainer:
-    """Pre-trains forecasting models on synthetic data."""
+    """
+    Trains models with RESTOCK MASKING.
+    The most important logic is in train_model() where we ignore positive jumps.
+    """
 
     def __init__(self, model_dir: Path):
         """
@@ -205,16 +198,20 @@ class ModelPreTrainer:
         item_name: str,
         item_template: Dict,
         sequence: List[Tuple[datetime, float]],
-        n_epochs: int = 20
+        n_epochs: int = 30
     ) -> ConsumptionForecaster:
         """
-        Train a model on synthetic sequence using multiple epochs.
+        Train a model on synthetic sequence with RESTOCK MASKING.
+
+        The critical innovation: we detect restocks (upward jumps) and use
+        handle_restock() instead of update(), preventing the model from
+        learning to predict magical inventory increases.
 
         Args:
             item_name: Item/category name
             item_template: Item configuration
             sequence: List of (timestamp, quantity) observations
-            n_epochs: Number of training epochs (default 20)
+            n_epochs: Number of training epochs
 
         Returns:
             Trained model
@@ -223,122 +220,65 @@ class ModelPreTrainer:
         self.logger.info(f"  Observations: {len(sequence)}")
         self.logger.info(f"  Epochs: {n_epochs}")
 
-        # Create model with lower learning rate for stability
+        # Create model
         model = ConsumptionForecaster(
             state_dim=4,
             feature_dim=8,
             process_noise_std=0.1,
             obs_noise_std=0.05,
-            learning_rate=0.01,  # Higher learning rate for faster training
+            learning_rate=0.001,
         )
 
         # Initialize state from first observations
-        initial_obs = [(qty, ts) for ts, qty in sequence[:10]]
+        initial_obs = [(q, t) for t, q in sequence[:7]]
 
         # Multi-epoch training loop
-        best_loss = float('inf')
-        epoch_losses = []
-
         for epoch in range(n_epochs):
             # Reinitialize state at start of each epoch
             state = model.initialize_state(sequence[0][1], initial_obs)
 
             epoch_loss = 0.0
-            for timestamp, quantity in sequence:
-                # Extract features for this timestamp
+            steps = 0
+
+            prev_qty = sequence[0][1]
+
+            for i, (timestamp, quantity) in enumerate(sequence):
                 features = extract_features(item_template, timestamp)
 
-                # Update model (online learning with gradient descent)
-                state, error = model.update(
-                    state,
-                    quantity,
-                    features,
-                    perform_learning=True
-                )
+                # RESTOCK DETECTION
+                is_restock = quantity > prev_qty + 0.1
 
-                epoch_loss += error ** 2
+                if is_restock:
+                    # Restocking event - reset state, don't learn
+                    state = model.handle_restock(state, quantity)
+                else:
+                    # Consumption event - learn from this
+                    state, error = model.update(
+                        state,
+                        quantity,
+                        features,
+                        perform_learning=True
+                    )
+                    epoch_loss += error ** 2
+                    steps += 1
 
-            # Average loss for this epoch
-            avg_epoch_loss = epoch_loss / len(sequence)
-            epoch_losses.append(avg_epoch_loss)
+                prev_qty = quantity
 
-            # Track best model
-            if avg_epoch_loss < best_loss:
-                best_loss = avg_epoch_loss
-
-            # Log progress every 5 epochs
-            if (epoch + 1) % 5 == 0 or epoch == 0:
-                self.logger.info(
-                    f"    Epoch {epoch + 1}/{n_epochs}: MSE={avg_epoch_loss:.4f}, "
-                    f"RMSE={np.sqrt(avg_epoch_loss):.4f}"
-                )
-
-        # Final evaluation with trained model
-        state = model.initialize_state(sequence[0][1], initial_obs)
-        final_losses = []
-
-        for timestamp, quantity in sequence:
-            features = extract_features(item_template, timestamp)
-            state, error = model.update(state, quantity, features, perform_learning=False)
-            final_losses.append(error ** 2)
-
-        final_mse = np.mean(final_losses)
-        final_rmse = np.sqrt(final_mse)
-
-        self.logger.info(f"  Training complete:")
-        self.logger.info(f"    Final MSE: {final_mse:.4f}")
-        self.logger.info(f"    Final RMSE: {final_rmse:.4f}")
-        self.logger.info(f"    Best Epoch MSE: {best_loss:.4f}")
-        self.logger.info(f"    Training steps: {model.training_steps}")
+            # Log progress
+            if (epoch + 1) % 10 == 0:
+                avg_loss = epoch_loss / max(1, steps)
+                self.logger.info(f"  Epoch {epoch+1}: MSE={avg_loss:.4f}")
 
         # Save final state with model
         model.final_state = state
 
+        self.logger.info(f"  Training complete: {model.training_steps} steps")
         return model
 
-    def train_all_models(
-        self,
-        sequences: Dict[str, List[Tuple[datetime, float]]],
-        n_epochs: int = 20
-    ):
-        """
-        Train models for all categories.
-
-        Args:
-            sequences: Dictionary of category -> sequence of observations
-            n_epochs: Number of training epochs per model (default 20)
-        """
-        self.logger.info("\n" + "=" * 70)
-        self.logger.info("Training Models on Synthetic Data")
-        self.logger.info("=" * 70)
-
-        for template in TRAINING_ITEMS:
-            item_name = template["name"]
-            sequence = sequences[item_name]
-
-            # Train model with multiple epochs
-            model = self.train_model(item_name, template, sequence, n_epochs=n_epochs)
-
-            # Save model
-            self.save_model(item_name, model, template)
-
-            self.trained_models[item_name] = model
-
-        self.logger.info("\n" + "=" * 70)
-        self.logger.info(f"Successfully trained {len(self.trained_models)} models")
-        self.logger.info("=" * 70)
-
-    def save_model(
-        self,
-        item_name: str,
-        model: ConsumptionForecaster,
-        template: Dict
-    ):
+    def save_model(self, item_name: str, model: ConsumptionForecaster, template: Dict):
         """Save trained model to disk."""
-        # Save model checkpoint
-        model_path = self.model_dir / f"pretrained_{item_name}.pt"
+        path = self.model_dir / f"pretrained_{item_name}.pt"
 
-        # Save with additional metadata
         checkpoint_data = {
             "model_state_dict": model.state_dict(),
             "state_cov": model.state_cov,
@@ -350,65 +290,61 @@ class ModelPreTrainer:
                 "base_qty": template["base_qty"],
                 "consumption_per_day": template["consumption_per_day"],
                 "pretrained": True,
-                "training_days": 60,
             }
         }
 
-        torch.save(checkpoint_data, model_path)
-        self.logger.info(f"  Saved model to: {model_path}")
+        torch.save(checkpoint_data, path)
+        self.logger.info(f"  Saved to {path}")
 
-    def test_forecast(self, item_name: str, template: Dict):
-        """Test forecasting with trained model."""
-        if item_name not in self.trained_models:
-            return
+    def train_all(self, sequences: Dict[str, List[Tuple[datetime, float]]], n_epochs: int = 30):
+        """Train models for all categories."""
+        self.logger.info("\n" + "=" * 70)
+        self.logger.info("Training Models on Synthetic Data with Restock Masking")
+        self.logger.info("=" * 70)
 
-        model = self.trained_models[item_name]
+        for template in TRAINING_ITEMS:
+            name = template["name"]
+            seq = sequences[name]
+            model = self.train_model(name, template, seq, n_epochs=n_epochs)
+            self.save_model(name, model, template)
+            self.trained_models[name] = model
 
-        # Get final state (or initialize)
-        if hasattr(model, 'final_state'):
-            state = model.final_state
-        else:
-            state = torch.zeros(model.state_dim)
-            state[0] = template["base_qty"]
-            state[1] = template["consumption_per_day"]
+            # Verify forecast
+            self.verify_forecast(model, template)
 
-        # Generate 14-day forecast
-        current_date = datetime.now()
-        future_dates = [current_date + timedelta(days=i) for i in range(1, 15)]
-        features_sequence = torch.stack([
-            extract_features(template, date) for date in future_dates
-        ])
+        self.logger.info("\n" + "=" * 70)
+        self.logger.info(f"Successfully trained {len(self.trained_models)} models")
+        self.logger.info("=" * 70)
 
-        states, quantities, uncertainties = model.predict_trajectory(
-            state,
-            features_sequence,
-            n_steps=14
+    def verify_forecast(self, model: ConsumptionForecaster, template: Dict):
+        """
+        Verify that the model predicts a RUNOUT (downward trend).
+        If the model predicts upward trend, something is wrong.
+        """
+        current_qty = template["base_qty"]
+        state = model.initialize_state(current_qty)
+
+        future_dates = [datetime.now() + timedelta(days=i) for i in range(14)]
+        features = torch.stack([extract_features(template, d) for d in future_dates])
+
+        _, quantities, _ = model.predict_trajectory(state, features, n_steps=14)
+
+        start_q = quantities[0].item()
+        end_q = quantities[-1].item()
+
+        trend_emoji = "📉 Downward" if end_q < start_q else "📈 Upward (BAD)"
+        self.logger.info(
+            f"  Verification {template['name']}: {start_q:.2f} -> {end_q:.2f} [{trend_emoji}]"
         )
 
-        # Predict runout
-        days_until_runout, confidence = model.predict_runout_date(
-            state,
-            features_sequence,
-            threshold=template["base_qty"] * 0.2,
-            max_days=14
-        )
-
-        self.logger.info(f"\n  Test Forecast for {item_name}:")
-        self.logger.info(f"    Current quantity: {state[0].item():.2f} {template['unit']}")
-        self.logger.info(f"    7-day forecast: {quantities[6].item():.2f} {template['unit']}")
-        self.logger.info(f"    14-day forecast: {quantities[13].item():.2f} {template['unit']}")
-        if days_until_runout:
-            self.logger.info(f"    Predicted runout: {days_until_runout} days (confidence: {confidence:.2f})")
-        else:
-            self.logger.info(f"    No runout predicted in next 14 days")
+        if end_q >= start_q:
+            self.logger.warning("  WARNING: Model is not predicting consumption correctly!")
 
 
 def main():
     """Main pre-training script."""
-    import argparse
-
     parser = argparse.ArgumentParser(
-        description="Pre-train forecasting models on synthetic temporal data"
+        description="Pre-train forecasting models on synthetic temporal data with restock masking"
     )
     parser.add_argument(
         "--epochs",
@@ -419,8 +355,8 @@ def main():
     parser.add_argument(
         "--days",
         type=int,
-        default=60,
-        help="Number of days of synthetic data to generate (default: 60)"
+        default=90,
+        help="Number of days of synthetic data to generate (default: 90)"
     )
     parser.add_argument(
         "--output-dir",
@@ -433,12 +369,14 @@ def main():
     logger = get_logger("pretrain_main")
 
     print("=" * 70)
-    print("  Forecasting Model Pre-Training")
+    print("  Forecasting Model Pre-Training (Corrected Logic)")
     print("=" * 70)
     print()
-    print("This script trains state space models on synthetic temporal data.")
-    print("The trained models can be used for immediate forecasting without")
-    print("requiring extensive historical user data.")
+    print("This script trains state space models on synthetic temporal data")
+    print("with RESTOCK MASKING to prevent model corruption.")
+    print()
+    print("The models learn ONLY from consumption events, ensuring they")
+    print("predict run-outs correctly rather than magical restocking.")
     print()
     print(f"Configuration:")
     print(f"  - Training epochs: {args.epochs}")
@@ -448,37 +386,31 @@ def main():
 
     # Generate synthetic data
     print("[1/3] Generating synthetic temporal data...")
-    generator = SyntheticTemporalDataGenerator(days=args.days)
-    sequences = generator.generate_all_sequences()
+    gen = SyntheticTemporalDataGenerator(days=args.days)
+    sequences = gen.generate_all_sequences()
 
     # Train models
     print(f"\n[2/3] Training models ({args.epochs} epochs each)...")
-    model_dir = Path(args.output_dir)
-    trainer = ModelPreTrainer(model_dir)
-    trainer.train_all_models(sequences, n_epochs=args.epochs)
+    trainer = ModelPreTrainer(Path(args.output_dir))
+    trainer.train_all(sequences, n_epochs=args.epochs)
 
-    # Test forecasts
-    print("\n[3/3] Testing forecasts...")
-    for template in TRAINING_ITEMS:
-        trainer.test_forecast(template["name"], template)
-
-    print("\n" + "=" * 70)
+    print("\n[3/3] Verification complete!")
+    print()
+    print("=" * 70)
     print("  Pre-training Complete!")
     print("=" * 70)
     print()
-    print(f"Trained models saved to: {model_dir}")
+    print(f"Trained models saved to: {args.output_dir}")
+    print()
+    print("Notice the 'Verification' steps showing downward trends.")
+    print("The models have now learned to ignore restocking jumps.")
     print()
     print("These models can now be used by ForecastService for immediate")
     print("forecasting. As actual user data accumulates, the models will")
     print("adapt through online learning.")
     print()
-    print("To use pre-trained models:")
-    print("  1. They will be automatically loaded if available")
-    print("  2. Or manually trigger training via UI")
-    print("  3. Models will improve with actual user data over time")
-    print()
     print("Example usage:")
-    print(f"  python scripts/pretrain_forecasting_models.py --epochs 50 --days 90")
+    print(f"  python scripts/pretrain_forecasting_models.py --epochs 50 --days 120")
     print("=" * 70)
 
 
