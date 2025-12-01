@@ -262,6 +262,43 @@ class ForecastService:
         self.trainer.save_all_models()
         self.logger.info("Saved all forecast models")
 
+    def train_all_models(self, force_retrain: bool = False) -> Dict[str, Any]:
+        """
+        Train or retrain forecasting models for all inventory items.
+
+        This method can be triggered manually by the user or run on a schedule.
+        It will use pre-trained models as warm-start when available.
+
+        Args:
+            force_retrain: If True, retrain even if recent training exists
+
+        Returns:
+            Dictionary with training summary
+        """
+        self.logger.info("Starting model training for all items...")
+
+        # Get all items data
+        items_data = []
+        items = self._get_all_items()
+
+        for item in items:
+            item_data = self._get_item_data(item.item_id)
+            if item_data:
+                items_data.append(item_data)
+
+        # Train models
+        results = self.trainer.train_all_models(items_data, force_retrain=force_retrain)
+
+        # Save trained models
+        self.save_all_models()
+
+        self.logger.info(
+            f"Model training complete: {results['trained']} trained, "
+            f"{results['skipped']} skipped, {results['failed']} failed"
+        )
+
+        return results
+
     def update_forecast_accuracy(
         self,
         forecast_id: str,

@@ -16,6 +16,8 @@ from PyQt6.QtWidgets import QApplication
 from src.config import get_config_manager
 from src.database.db_manager import create_database_manager
 from src.models import ActionType, Actor, create_audit_log
+from src.services.forecast_service import ForecastService
+from src.services.training_scheduler import TrainingScheduler
 from src.ui import MainWindow
 from src.utils import get_audit_logger, get_logger
 
@@ -29,6 +31,8 @@ class P3EdgeApplication:
         self.config = get_config_manager()
         self.db_manager = None
         self.audit_logger = None
+        self.forecast_service = None
+        self.training_scheduler = None
         self.main_window = None
 
     def initialize(self) -> bool:
@@ -61,6 +65,23 @@ class P3EdgeApplication:
 
             # Initialize audit logger
             self.audit_logger = get_audit_logger(self.db_manager)
+
+            # Initialize forecast service
+            self.forecast_service = ForecastService(self.db_manager)
+
+            # Initialize and start training scheduler
+            enable_scheduler = self.config.get("forecasting.auto_training", True)
+            if enable_scheduler:
+                self.training_scheduler = TrainingScheduler(
+                    forecast_service=self.forecast_service,
+                    db_manager=self.db_manager,
+                    training_hour=2,  # 2 AM
+                    training_minute=0,
+                )
+                self.training_scheduler.start()
+                self.logger.info("Training scheduler enabled")
+            else:
+                self.logger.info("Training scheduler disabled by configuration")
 
             # Log startup
             self.audit_logger.log_action(
@@ -120,6 +141,17 @@ class P3EdgeApplication:
     def shutdown(self) -> None:
         """Clean shutdown of the application."""
         self.logger.info("Shutting down application...")
+
+        # Stop training scheduler
+        if self.training_scheduler:
+            self.training_scheduler.stop()
+
+        # Save all forecast models
+        if self.forecast_service:
+            try:
+                self.forecast_service.save_all_models()
+            except Exception as e:
+                self.logger.error(f"Failed to save models on shutdown: {e}")
 
         # Close database
         if self.db_manager:

@@ -54,6 +54,14 @@ class ForecastPage(QWidget):
         self.refresh_btn.clicked.connect(self.refresh_forecasts)
         header_layout.addWidget(self.refresh_btn)
 
+        self.train_models_btn = QPushButton("Train Models")
+        self.train_models_btn.clicked.connect(self._on_train_models)
+        self.train_models_btn.setToolTip(
+            "Train forecasting models on historical data. "
+            "Uses pre-trained models when available."
+        )
+        header_layout.addWidget(self.train_models_btn)
+
         self.generate_all_btn = QPushButton("Generate All Forecasts")
         self.generate_all_btn.clicked.connect(self._on_generate_all)
         header_layout.addWidget(self.generate_all_btn)
@@ -280,6 +288,63 @@ class ForecastPage(QWidget):
             cursor = conn.execute(query, (item_id,))
             row = cursor.fetchone()
             return row["name"] if row else "Unknown"
+
+    def _on_train_models(self):
+        """Train forecasting models on historical data."""
+        if not self.forecast_service:
+            return
+
+        reply = QMessageBox.question(
+            self,
+            "Train Models",
+            "Train forecasting models on historical data?\n\n"
+            "This will:\n"
+            "• Use pre-trained models as starting point when available\n"
+            "• Train on your actual usage history\n"
+            "• Improve forecast accuracy over time\n\n"
+            "This may take a few moments.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+
+        if reply == QMessageBox.StandardButton.Yes:
+            try:
+                # Disable button during training
+                self.train_models_btn.setEnabled(False)
+                self.train_models_btn.setText("Training...")
+
+                # Train models
+                results = self.forecast_service.train_all_models(force_retrain=False)
+
+                # Re-enable button
+                self.train_models_btn.setEnabled(True)
+                self.train_models_btn.setText("Train Models")
+
+                # Show results
+                message = (
+                    f"Training Complete!\n\n"
+                    f"• Trained: {results['trained']} models\n"
+                    f"• Skipped: {results['skipped']} (recently trained)\n"
+                    f"• Failed: {results['failed']}\n"
+                )
+
+                if results["items"]:
+                    pretrained_count = sum(
+                        1 for item in results["items"] if item.get("pretrained", False)
+                    )
+                    if pretrained_count > 0:
+                        message += f"\n✓ {pretrained_count} models used pre-trained weights"
+
+                QMessageBox.information(self, "Training Complete", message)
+
+            except Exception as e:
+                self.logger.error(f"Failed to train models: {e}")
+                self.train_models_btn.setEnabled(True)
+                self.train_models_btn.setText("Train Models")
+                QMessageBox.warning(
+                    self,
+                    "Error",
+                    f"Failed to train models: {e}",
+                )
 
     def _on_generate_all(self):
         """Generate forecasts for all items."""
