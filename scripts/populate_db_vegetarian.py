@@ -11,6 +11,12 @@ Simulates:
 - Mid-week restocking for perishables
 - Seasonal variations in produce consumption
 - Special occasions (extra guests on weekends)
+
+Note: This script uses InventoryItem.model_construct() instead of the normal
+constructor to bypass Pydantic validation. This is necessary because we're
+creating historical data that may have past expiry dates, which would normally
+be rejected by the validation rules. In production, the validation ensures
+data integrity, but for historical data population, we need to allow past dates.
 """
 
 import sys
@@ -570,8 +576,8 @@ class VegetarianDataSimulator:
                 )
                 expiry_date = (self.start_date + timedelta(days=days_until_expiry)).date()
 
-            # Create inventory item
-            item = InventoryItem(
+            # Create inventory item (use model_construct to bypass validation for historical data)
+            item = InventoryItem.model_construct(
                 name=template["name"],
                 category=template["category"],
                 brand=template["brand"],
