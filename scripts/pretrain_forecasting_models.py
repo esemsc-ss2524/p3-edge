@@ -204,60 +204,91 @@ class ModelPreTrainer:
         self,
         item_name: str,
         item_template: Dict,
-        sequence: List[Tuple[datetime, float]]
+        sequence: List[Tuple[datetime, float]],
+        n_epochs: int = 20
     ) -> ConsumptionForecaster:
         """
-        Train a model on synthetic sequence.
+        Train a model on synthetic sequence using multiple epochs.
 
         Args:
             item_name: Item/category name
             item_template: Item configuration
             sequence: List of (timestamp, quantity) observations
+            n_epochs: Number of training epochs (default 20)
 
         Returns:
             Trained model
         """
         self.logger.info(f"\nTraining model for: {item_name}")
         self.logger.info(f"  Observations: {len(sequence)}")
+        self.logger.info(f"  Epochs: {n_epochs}")
 
-        # Create model
+        # Create model with lower learning rate for stability
         model = ConsumptionForecaster(
             state_dim=4,
             feature_dim=8,
             process_noise_std=0.1,
             obs_noise_std=0.05,
-            learning_rate=0.001,
+            learning_rate=0.01,  # Higher learning rate for faster training
         )
 
         # Initialize state from first observations
         initial_obs = [(qty, ts) for ts, qty in sequence[:10]]
+
+        # Multi-epoch training loop
+        best_loss = float('inf')
+        epoch_losses = []
+
+        for epoch in range(n_epochs):
+            # Reinitialize state at start of each epoch
+            state = model.initialize_state(sequence[0][1], initial_obs)
+
+            epoch_loss = 0.0
+            for timestamp, quantity in sequence:
+                # Extract features for this timestamp
+                features = extract_features(item_template, timestamp)
+
+                # Update model (online learning with gradient descent)
+                state, error = model.update(
+                    state,
+                    quantity,
+                    features,
+                    perform_learning=True
+                )
+
+                epoch_loss += error ** 2
+
+            # Average loss for this epoch
+            avg_epoch_loss = epoch_loss / len(sequence)
+            epoch_losses.append(avg_epoch_loss)
+
+            # Track best model
+            if avg_epoch_loss < best_loss:
+                best_loss = avg_epoch_loss
+
+            # Log progress every 5 epochs
+            if (epoch + 1) % 5 == 0 or epoch == 0:
+                self.logger.info(
+                    f"    Epoch {epoch + 1}/{n_epochs}: MSE={avg_epoch_loss:.4f}, "
+                    f"RMSE={np.sqrt(avg_epoch_loss):.4f}"
+                )
+
+        # Final evaluation with trained model
         state = model.initialize_state(sequence[0][1], initial_obs)
+        final_losses = []
 
-        # Training loop
-        losses = []
         for timestamp, quantity in sequence:
-            # Extract features for this timestamp
             features = extract_features(item_template, timestamp)
+            state, error = model.update(state, quantity, features, perform_learning=False)
+            final_losses.append(error ** 2)
 
-            # Update model (online learning)
-            state, error = model.update(
-                state,
-                quantity,
-                features,
-                perform_learning=True
-            )
-
-            losses.append(error ** 2)
-
-        # Compute training metrics
-        mse = np.mean(losses)
-        rmse = np.sqrt(mse)
-        mae = np.mean([abs(e) for e, _ in
-                       [(model.last_loss, 0)] if model.last_loss else [(0, 0)]])
+        final_mse = np.mean(final_losses)
+        final_rmse = np.sqrt(final_mse)
 
         self.logger.info(f"  Training complete:")
-        self.logger.info(f"    MSE: {mse:.4f}")
-        self.logger.info(f"    RMSE: {rmse:.4f}")
+        self.logger.info(f"    Final MSE: {final_mse:.4f}")
+        self.logger.info(f"    Final RMSE: {final_rmse:.4f}")
+        self.logger.info(f"    Best Epoch MSE: {best_loss:.4f}")
         self.logger.info(f"    Training steps: {model.training_steps}")
 
         # Save final state with model
@@ -267,9 +298,16 @@ class ModelPreTrainer:
 
     def train_all_models(
         self,
-        sequences: Dict[str, List[Tuple[datetime, float]]]
+        sequences: Dict[str, List[Tuple[datetime, float]]],
+        n_epochs: int = 20
     ):
-        """Train models for all categories."""
+        """
+        Train models for all categories.
+
+        Args:
+            sequences: Dictionary of category -> sequence of observations
+            n_epochs: Number of training epochs per model (default 20)
+        """
         self.logger.info("\n" + "=" * 70)
         self.logger.info("Training Models on Synthetic Data")
         self.logger.info("=" * 70)
@@ -278,8 +316,8 @@ class ModelPreTrainer:
             item_name = template["name"]
             sequence = sequences[item_name]
 
-            # Train model
-            model = self.train_model(item_name, template, sequence)
+            # Train model with multiple epochs
+            model = self.train_model(item_name, template, sequence, n_epochs=n_epochs)
 
             # Save model
             self.save_model(item_name, model, template)
@@ -367,6 +405,31 @@ class ModelPreTrainer:
 
 def main():
     """Main pre-training script."""
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Pre-train forecasting models on synthetic temporal data"
+    )
+    parser.add_argument(
+        "--epochs",
+        type=int,
+        default=30,
+        help="Number of training epochs per model (default: 30)"
+    )
+    parser.add_argument(
+        "--days",
+        type=int,
+        default=60,
+        help="Number of days of synthetic data to generate (default: 60)"
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=str,
+        default="models/pretrained",
+        help="Directory to save trained models (default: models/pretrained)"
+    )
+
+    args = parser.parse_args()
     logger = get_logger("pretrain_main")
 
     print("=" * 70)
@@ -377,17 +440,22 @@ def main():
     print("The trained models can be used for immediate forecasting without")
     print("requiring extensive historical user data.")
     print()
+    print(f"Configuration:")
+    print(f"  - Training epochs: {args.epochs}")
+    print(f"  - Synthetic data days: {args.days}")
+    print(f"  - Output directory: {args.output_dir}")
+    print()
 
     # Generate synthetic data
     print("[1/3] Generating synthetic temporal data...")
-    generator = SyntheticTemporalDataGenerator(days=60)
+    generator = SyntheticTemporalDataGenerator(days=args.days)
     sequences = generator.generate_all_sequences()
 
     # Train models
-    print("\n[2/3] Training models...")
-    model_dir = Path("models/pretrained")
+    print(f"\n[2/3] Training models ({args.epochs} epochs each)...")
+    model_dir = Path(args.output_dir)
     trainer = ModelPreTrainer(model_dir)
-    trainer.train_all_models(sequences)
+    trainer.train_all_models(sequences, n_epochs=args.epochs)
 
     # Test forecasts
     print("\n[3/3] Testing forecasts...")
@@ -408,6 +476,9 @@ def main():
     print("  1. They will be automatically loaded if available")
     print("  2. Or manually trigger training via UI")
     print("  3. Models will improve with actual user data over time")
+    print()
+    print("Example usage:")
+    print(f"  python scripts/pretrain_forecasting_models.py --epochs 50 --days 90")
     print("=" * 70)
 
 
