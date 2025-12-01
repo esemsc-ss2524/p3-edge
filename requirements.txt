@@ -54,6 +54,10 @@ matplotlib>=3.8.2
 # Scheduling
 apscheduler>=3.10.4
 
+# Phase 4: LLM Integration
+# LLM Inference
+ollama>=0.1.0
+
 # Development Tools
 pytest>=7.4.3
 pytest-qt>=4.2.0

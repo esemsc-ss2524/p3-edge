@@ -14,10 +14,9 @@ An edge-computing autonomous grocery shopping agent that leverages on-device AI 
 - **Privacy-By-Design**: Minimal internet usage, user-owned data, on-device processing
 - **Multi-Vendor Support**: Amazon and Walmart integration with price comparison
 
-## 📋 Current Status: Phase 1 - Foundation ✅
+## 📋 Current Status: Phase 4 - LLM Integration ✅
 
-Phase 1 (Foundation) is now complete with the following components:
-
+**Phase 1 (Foundation)** - COMPLETE ✅
 - ✅ Project structure and directory layout
 - ✅ PyQt6 UI shell with navigation
 - ✅ SQLite database with SQLCipher encryption
@@ -26,14 +25,35 @@ Phase 1 (Foundation) is now complete with the following components:
 - ✅ Logging and audit trail infrastructure
 - ✅ Initialization scripts
 
+**Phase 2 (Data Ingestion)** - COMPLETE ✅
+- ✅ Manual inventory entry UI
+- ✅ Receipt OCR pipeline
+- ✅ Smart fridge API integration
+- ✅ Inventory history tracking
+
+**Phase 3 (Forecasting Engine)** - COMPLETE ✅
+- ✅ State space model implementation
+- ✅ Online learning trainer
+- ✅ Forecast generation and visualization
+- ✅ Model checkpointing
+
+**Phase 4 (LLM Integration)** - COMPLETE ✅
+- ✅ Gemma 3 4b model integration via Ollama
+- ✅ LLM inference service
+- ✅ Conversational AI chat interface
+- ✅ Feature suggestion capabilities
+- ✅ Decision explanation generator
+- ✅ Multimodal support (text + images)
+
 ## 🚀 Quick Start
 
 ### Prerequisites
 
 - Python 3.10 or higher
 - pip (Python package manager)
-- 8GB RAM minimum
-- 10GB disk space
+- 8GB RAM minimum (16GB recommended for LLM features)
+- 10GB disk space (13GB with Gemma 3 4b model)
+- **Ollama** (for LLM features) - [Installation Guide](https://ollama.com)
 
 ### Installation
 
@@ -72,7 +92,35 @@ Phase 1 (Foundation) is now complete with the following components:
 
    You'll be prompted to create a master password for database encryption. Choose a strong password and remember it!
 
-5. **Run the application**
+5. **(Optional) Set up LLM features**
+
+   To use the AI Chat and LLM-powered features:
+
+   a. Install Ollama:
+   ```bash
+   # Linux
+   curl -fsSL https://ollama.com/install.sh | sh
+
+   # macOS
+   brew install ollama
+
+   # Windows: Download from https://ollama.com/download
+   ```
+
+   b. Start Ollama server:
+   ```bash
+   ollama serve
+   ```
+   (Keep this running in a separate terminal)
+
+   c. Download Gemma 3 4b model:
+   ```bash
+   python scripts/download_model.py
+   ```
+
+   See [docs/LLM_SETUP.md](docs/LLM_SETUP.md) for detailed setup instructions.
+
+6. **Run the application**
    ```bash
    python src/main.py
    ```
@@ -156,31 +204,34 @@ The application uses an encrypted SQLite database with the following core tables
 ## 🎯 Development Roadmap
 
 ### ✅ Phase 1: Foundation (Weeks 1-2) - COMPLETE
-- Project setup and structure
-- Database with encryption
-- Core data models
-- Basic UI shell
-- Configuration management
-- Logging infrastructure
+- ✅ Project setup and structure
+- ✅ Database with encryption
+- ✅ Core data models
+- ✅ Basic UI shell
+- ✅ Configuration management
+- ✅ Logging infrastructure
 
-### 🔄 Phase 2: Data Ingestion (Weeks 3-4) - NEXT
-- Manual inventory entry UI
-- Receipt OCR pipeline
-- Smart fridge API simulator
-- Phone app stub for image upload
-- Data validation and normalization
+### ✅ Phase 2: Data Ingestion (Weeks 3-4) - COMPLETE
+- ✅ Manual inventory entry UI
+- ✅ Receipt OCR pipeline
+- ✅ Smart fridge API integration
+- ✅ Phone app stub for image upload
+- ✅ Data validation and normalization
 
-### 📅 Phase 3: Forecasting Engine (Weeks 5-6)
-- State space model implementation
-- Online learning trainer
-- Forecast generation and visualization
-- Model checkpointing
+### ✅ Phase 3: Forecasting Engine (Weeks 5-6) - COMPLETE
+- ✅ State space model implementation
+- ✅ Online learning trainer
+- ✅ Forecast generation and visualization
+- ✅ Model checkpointing
 
-### 🤖 Phase 4: LLM Integration (Weeks 7-8)
-- Gemma 3n model download and quantization
-- Conversational interface
-- Feature suggestion module
-- Decision explanation generator
+### ✅ Phase 4: LLM Integration (Weeks 7-8) - COMPLETE
+- ✅ Gemma 3 4b model download via Ollama
+- ✅ LLM inference service with Python bindings
+- ✅ Conversational chat interface in UI
+- ✅ Feature suggestion module
+- ✅ Decision explanation generator
+- ✅ Question generation for onboarding
+- ✅ Multimodal support (text + images)
 
 ### 🛒 Phase 5: E-Commerce Integration (Weeks 9-10)
 - Amazon SP-API client
@@ -273,8 +324,29 @@ mypy src
 ## 📚 Documentation
 
 - [Technical Plan](plan/TECHNICAL_PLAN.md) - Comprehensive technical architecture
+- [LLM Setup Guide](docs/LLM_SETUP.md) - Detailed guide for setting up AI Chat features
 - [Task Requirements](plan/Task.txt) - Original project requirements
 - [Vision Document](plan/My-Plan.txt) - Project vision and implementation notes
+
+## 💬 Using AI Chat
+
+The AI Chat feature (Phase 4) provides a conversational interface powered by Gemma 3 4b:
+
+1. **Access**: Click "AI Chat" in the navigation panel
+2. **Chat**: Type your questions and get intelligent responses
+3. **Features**:
+   - Natural language conversations about groceries
+   - Inventory queries and recommendations
+   - Shopping advice and explanations
+   - Image support (attach receipts, photos)
+
+**Example queries:**
+- "What items are running low?"
+- "Should I buy more milk this week?"
+- "Explain how the forecasting works"
+- "What's a good brand for organic pasta?"
+
+See [docs/LLM_SETUP.md](docs/LLM_SETUP.md) for setup instructions.
 
 ## 🤝 Contributing
 
@@ -307,6 +379,6 @@ For questions or issues:
 
 ---
 
-**Note**: This project is in active development. Phase 1 (Foundation) is complete. Phase 2 (Data Ingestion) begins next.
+**Note**: This project is in active development. Phases 1-4 are complete (Foundation, Data Ingestion, Forecasting, and LLM Integration). Phase 5 (E-Commerce Integration) is next.
 
 **Privacy First. Edge Computing. Autonomous Intelligence.**
