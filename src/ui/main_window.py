@@ -27,6 +27,7 @@ from src.services.forecast_service import ForecastService
 from src.ui.inventory_page import InventoryPage
 from src.ui.forecast_page import ForecastPage
 from src.ui.smart_fridge_page import SmartFridgePage
+from src.ui.chat_page import ChatPage
 from src.utils import get_logger
 
 
@@ -118,6 +119,7 @@ class MainWindow(QMainWindow):
             ("Dashboard", self.show_dashboard),
             ("Inventory", self.show_inventory),
             ("Forecasts", self.show_forecasts),
+            ("AI Chat", self.show_chat),
             ("Shopping Cart", self.show_shopping_cart),
             ("Order History", self.show_order_history),
             ("Smart Fridge", self.show_smart_fridge),
@@ -150,6 +152,7 @@ class MainWindow(QMainWindow):
             "dashboard": self._create_dashboard_page(),
             "inventory": InventoryPage(self.inventory_service) if self.inventory_service else self._create_placeholder_page("Inventory Management"),
             "forecasts": ForecastPage(self.forecast_service) if self.forecast_service else self._create_placeholder_page("Forecast View"),
+            "chat": ChatPage(),
             "shopping_cart": self._create_placeholder_page("Shopping Cart"),
             "order_history": self._create_placeholder_page("Order History"),
             "smart_fridge": SmartFridgePage(self.db_manager) if self.db_manager else self._create_placeholder_page("Smart Refrigerator"),
@@ -394,6 +397,11 @@ class MainWindow(QMainWindow):
         """Show the forecasts page."""
         self.content_stack.setCurrentWidget(self.pages["forecasts"])
         self.status_bar.showMessage("Forecasts")
+
+    def show_chat(self) -> None:
+        """Show the AI chat page."""
+        self.content_stack.setCurrentWidget(self.pages["chat"])
+        self.status_bar.showMessage("AI Chat")
 
     def show_shopping_cart(self) -> None:
         """Show the shopping cart page."""
