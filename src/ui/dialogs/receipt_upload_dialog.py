@@ -59,6 +59,11 @@ class ReceiptUploadDialog(QDialog):
         title.setStyleSheet("font-size: 18px; font-weight: bold; margin-bottom: 10px;")
         layout.addWidget(title)
 
+        # Info label
+        info_label = QLabel("📸 Uses AI-powered OCR with LLM for intelligent item extraction")
+        info_label.setStyleSheet("color: #3498db; font-size: 12px; margin-bottom: 10px;")
+        layout.addWidget(info_label)
+
         # File selection
         file_layout = QHBoxLayout()
 

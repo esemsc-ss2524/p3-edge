@@ -255,6 +255,124 @@ ollama run gemma2:4b --verbose
 
 Look for GPU detection messages.
 
+## LLM-Enhanced Receipt OCR
+
+Phase 4 includes an intelligent receipt parsing system that uses the LLM to extract items from OCR text. This significantly improves accuracy over traditional regex-based parsing.
+
+### How It Works
+
+1. **Tesseract OCR** extracts raw text from receipt images
+2. **LLM Service** intelligently parses the OCR text, handling:
+   - OCR errors and typos
+   - Various receipt formats
+   - Item name normalization
+   - Quantity and unit extraction
+   - Price detection
+3. **Pydantic Validation** ensures data quality with strict schema enforcement
+4. **Automatic Fallback** to regex parsing if LLM is unavailable
+
+### Features
+
+- **Intelligent Parsing**: Handles OCR errors and abbreviations
+- **Structured Output**: Returns JSON with validated schema:
+  ```json
+  {
+    "store": "Walmart",
+    "date": "2024-12-02",
+    "total": 45.67,
+    "items": [
+      {
+        "name": "Organic Milk",
+        "quantity": 1.0,
+        "unit": "gallon",
+        "price": 5.99,
+        "confidence": 0.95
+      }
+    ]
+  }
+  ```
+- **Confidence Scores**: Each item has a confidence score (0.0-1.0)
+- **Unit Normalization**: Standardizes units (lb, oz, kg, gallon, etc.)
+- **Header/Footer Filtering**: Automatically skips non-item text
+
+### Usage
+
+The LLM-enhanced parsing is **enabled by default** when you upload a receipt through the UI.
+
+To use it programmatically:
+
+```python
+from src.ingestion.receipt_ocr import ReceiptOCR
+
+# With LLM (default)
+ocr = ReceiptOCR(use_llm=True)
+items = ocr.process_receipt("path/to/receipt.jpg")
+
+# Without LLM (fallback to regex)
+ocr = ReceiptOCR(use_llm=False)
+items = ocr.process_receipt("path/to/receipt.jpg")
+```
+
+Direct text parsing:
+
+```python
+from src.services.llm_service import LLMService
+
+llm = LLMService()
+result = llm.parse_receipt_text(ocr_text)
+
+for item in result['items']:
+    print(f"{item['name']}: ${item['price']}")
+```
+
+### Testing
+
+Test the LLM-enhanced OCR:
+
+```bash
+python scripts/test_ocr_llm.py
+```
+
+This will test:
+- LLM receipt text parsing
+- Schema validation
+- Comparison with regex parsing
+
+### Performance
+
+**LLM Parsing:**
+- More accurate on complex receipts
+- Handles OCR errors better
+- Extracts more metadata (store, date, total)
+- Higher confidence scores
+- Slower (~2-5 seconds per receipt)
+
+**Regex Parsing (Fallback):**
+- Faster (<1 second per receipt)
+- Works offline without Ollama
+- Less accurate on messy OCR
+- Limited metadata extraction
+
+### Configuration
+
+The OCR pipeline automatically uses LLM if available. To disable:
+
+```python
+# In your code
+ocr = ReceiptOCR(use_llm=False)
+```
+
+Or check if LLM is available:
+
+```python
+from src.ingestion.receipt_ocr import LLM_AVAILABLE
+
+if LLM_AVAILABLE:
+    print("LLM parsing available")
+else:
+    print("Using regex fallback")
+```
+
 ## Advanced Features
 
 ### Feature Suggestions
