@@ -42,29 +42,30 @@ def download_gemma_model() -> None:
         logger.info("  3. Then run this script again")
         sys.exit(1)
 
-    logger.info("Ollama server is running. Checking for Gemma 3 4b model...")
+    # logger.info("Ollama server is running. Checking for gemma3n:e2b-it-q4_K_M model...")
+    logger.info("Ollama server is running. Checking for llama3.2:3b...")
 
     # Check if model is already downloaded
     try:
         models = ollama.list()
-        model_names = [model['name'] for model in models.get('models', [])]
+        model_names = [model['model'] for model in models.get('models', [])]
 
         # if 'gemma3:4b' in model_names or 'gemma2:latest' in model_names:
-        if 'gemma3:4b' in model_names:
+        # if 'gemma3n:e2b-it-q4_K_M' in model_names:
+        if 'llama3.2:3b' in model_names:
             logger.info("Gemma model already downloaded!")
             return
     except Exception as e:
         logger.warning(f"Could not check existing models: {e}")
 
     # Download the model
-    logger.info("Downloading Gemma 3 4b model...")
+    logger.info("Downloading llama3.2:3b model...")
     logger.info("This may take several minutes depending on your internet connection.")
-    logger.info("Model size: ~3GB")
+    logger.info("Model size: ~4GB")
 
     try:
-        # Pull gemma2:4b model
-        # Note: Gemma 3 is referred to as gemma2 in Ollama
-        response = ollama.pull('gemma3:4b')
+        # Pull the model
+        response = ollama.pull('llama3.2:3b')
         logger.info("Model downloaded successfully!")
         logger.info(f"Response: {response}")
     except Exception as e:
@@ -80,7 +81,7 @@ def main() -> None:
     logger.info("P3-Edge Model Download - Phase 4")
     logger.info("=" * 60)
 
-    logger.info("\nDownloading Gemma 3 4b model via Ollama...")
+    logger.info("\nDownloading llama3.2:3b via Ollama...")
     logger.info("This model will be used for:")
     logger.info("  - Conversational interface")
     logger.info("  - Feature engineering suggestions")

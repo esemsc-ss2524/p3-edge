@@ -57,12 +57,14 @@ class ReceiptParseResult(BaseModel):
 class LLMService:
     """Service for LLM inference using Ollama."""
 
-    def __init__(self, model_name: str = "gemma3:4b"):
+    # def __init__(self, model_name: str = "gemma3:4b"):
+    def __init__(self, model_name: str = "gemma3n:e2b-it-q4_K_M"):
+    # def __init__(self, model_name: str = "llama3.2:3b"):
         """
         Initialize LLM service.
 
         Args:
-            model_name: Name of the Ollama model to use (default: gemma3:4b)
+            model_name: Name of the Ollama model to use
         """
         self.logger = get_logger("llm_service")
         self.model_name = model_name
