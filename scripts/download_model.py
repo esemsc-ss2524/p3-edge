@@ -49,7 +49,8 @@ def download_gemma_model() -> None:
         models = ollama.list()
         model_names = [model['name'] for model in models.get('models', [])]
 
-        if 'gemma2:4b' in model_names or 'gemma2:latest' in model_names:
+        # if 'gemma3:4b' in model_names or 'gemma2:latest' in model_names:
+        if 'gemma3:4b' in model_names:
             logger.info("Gemma model already downloaded!")
             return
     except Exception as e:
@@ -63,7 +64,7 @@ def download_gemma_model() -> None:
     try:
         # Pull gemma2:4b model
         # Note: Gemma 3 is referred to as gemma2 in Ollama
-        response = ollama.pull('gemma2:4b')
+        response = ollama.pull('gemma3:4b')
         logger.info("Model downloaded successfully!")
         logger.info(f"Response: {response}")
     except Exception as e:

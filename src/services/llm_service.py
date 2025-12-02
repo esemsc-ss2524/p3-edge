@@ -20,12 +20,12 @@ from ..utils import get_logger
 class LLMService:
     """Service for LLM inference using Ollama."""
 
-    def __init__(self, model_name: str = "gemma2:4b"):
+    def __init__(self, model_name: str = "gemma3:4b"):
         """
         Initialize LLM service.
 
         Args:
-            model_name: Name of the Ollama model to use (default: gemma2:4b)
+            model_name: Name of the Ollama model to use (default: gemma3:4b)
         """
         self.logger = get_logger("llm_service")
         self.model_name = model_name
@@ -50,7 +50,8 @@ class LLMService:
         # Check if model is downloaded
         try:
             models = ollama.list()
-            model_names = [model['name'] for model in models.get('models', [])]
+            # print(models)
+            model_names = [model['model'] for model in models.get('models', [])]
 
             if self.model_name not in model_names:
                 # Also check without tag
