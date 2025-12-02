@@ -350,14 +350,15 @@ class CartService:
 
             for item_data in order.items:
                 cart_item = CartItem(
-                    product_id=item_data.get("item_id", str(uuid.uuid4())),
-                    name=item_data["name"],
-                    price=item_data["price"],
-                    quantity=item_data["quantity"],
-                    unit=item_data.get("unit"),
+                    product_id=item_data.item_id or str(uuid.uuid4()),
+                    name=item_data.name,
+                    price=item_data.price,
+                    quantity=item_data.quantity,
+                    unit=item_data.unit,
                     vendor=order.vendor
                 )
                 cart.add_item(cart_item)
+
 
             # Place order with vendor
             vendor_response = vendor_client.place_order(

@@ -95,6 +95,7 @@ def test_cart_service():
         # Initialize database and service
         logger.info("\n1. Initializing cart service...")
         db_manager = DatabaseManager("data/test_ecommerce.db", "test_password")
+        db_manager.initialize_database()
         cart_service = CartService(db_manager)
         amazon_client = AmazonClient()
         logger.info("✅ Service initialized")
