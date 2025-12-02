@@ -24,7 +24,9 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtGui import QTextCursor
 
 from ..services.llm_service import LLMService
+from ..models.tool_models import AgentResponse, ToolCall, ToolResult
 from ..utils import get_logger
+import json
 
 
 class ChatWorker(QThread):
@@ -55,6 +57,60 @@ class ChatWorker(QThread):
                 system_prompt=self.system_prompt
             )
             self.response_ready.emit(response)
+        except Exception as e:
+            self.error_occurred.emit(str(e))
+
+
+class ChatWorkerWithTools(QThread):
+    """Worker thread for LLM chat with tool support."""
+
+    response_ready = pyqtSignal(object)  # AgentResponse object
+    tool_executing = pyqtSignal(str, dict)  # tool_name, arguments
+    tool_completed = pyqtSignal(object)  # ToolResult object
+    error_occurred = pyqtSignal(str)
+
+    def __init__(
+        self,
+        llm_service: LLMService,
+        message: str,
+        use_tools: bool = True,
+        images: Optional[List[str]] = None,
+        system_prompt: Optional[str] = None
+    ):
+        super().__init__()
+        self.llm_service = llm_service
+        self.message = message
+        self.use_tools = use_tools
+        self.images = images
+        self.system_prompt = system_prompt
+
+    def run(self):
+        """Run the chat operation with tool support."""
+        try:
+            if self.use_tools and self.llm_service.tool_executor:
+                # Use tool-enabled chat
+                agent_response = self.llm_service.chat_with_tools(
+                    message=self.message,
+                    images=self.images,
+                    system_prompt=self.system_prompt
+                )
+                self.response_ready.emit(agent_response)
+            else:
+                # Fallback to regular chat
+                response = self.llm_service.chat(
+                    message=self.message,
+                    images=self.images,
+                    system_prompt=self.system_prompt
+                )
+                # Wrap in AgentResponse for consistency
+                from ..models.tool_models import AgentResponse
+                agent_response = AgentResponse(
+                    response=response,
+                    tool_calls=[],
+                    tool_results=[],
+                    iterations=1
+                )
+                self.response_ready.emit(agent_response)
         except Exception as e:
             self.error_occurred.emit(str(e))
 
@@ -114,9 +170,10 @@ class ChatMessage(QFrame):
 class ChatPage(QWidget):
     """Chat page for conversational interaction with the LLM."""
 
-    def __init__(self, parent=None):
+    def __init__(self, tool_executor=None, parent=None):
         super().__init__(parent)
         self.logger = get_logger("chat_page")
+        self.tool_executor = tool_executor
         self.llm_service: Optional[LLMService] = None
         self.chat_worker: Optional[ChatWorker] = None
         self.attached_images: List[str] = []
@@ -292,8 +349,42 @@ class ChatPage(QWidget):
     def _initialize_llm(self):
         """Initialize the LLM service."""
         try:
-            self.llm_service = LLMService()
-            self.status_label.setText("✅ Ready - Gemma 3 4b model loaded")
+            self.llm_service = LLMService(tool_executor=self.tool_executor)
+
+            # Update status based on tool availability
+            if self.tool_executor:
+                status_text = "✅ Ready - Intelligent Agent with Tools"
+                welcome_message = (
+                    "Hello! I'm your intelligent grocery shopping assistant with access to powerful tools. I can help you with:\n\n"
+                    "🔍 **Inventory & Data:**\n"
+                    "  • Check what's in your inventory\n"
+                    "  • Find items expiring soon\n"
+                    "  • Search for specific products\n\n"
+                    "📊 **Forecasting & Analysis:**\n"
+                    "  • Calculate how long items will last\n"
+                    "  • Generate consumption forecasts\n"
+                    "  • Analyze usage trends\n\n"
+                    "🛒 **Shopping:**\n"
+                    "  • Search for products on Amazon\n"
+                    "  • Add items to your cart\n"
+                    "  • Check your budget\n\n"
+                    "🤖 **System:**\n"
+                    "  • Train forecasting models\n"
+                    "  • Get system performance metrics\n\n"
+                    "Ask me anything! I'll use the appropriate tools to help you."
+                )
+            else:
+                status_text = "✅ Ready - Gemma 3 4b model loaded"
+                welcome_message = (
+                    "Hello! I'm your grocery shopping assistant. I can help you with:\n"
+                    "• Managing your inventory\n"
+                    "• Understanding consumption patterns\n"
+                    "• Making shopping recommendations\n"
+                    "• Answering questions about your groceries\n\n"
+                    "How can I help you today?"
+                )
+
+            self.status_label.setText(status_text)
             self.status_label.setStyleSheet("""
                 QLabel {
                     font-size: 12px;
@@ -303,15 +394,7 @@ class ChatPage(QWidget):
             """)
 
             # Add welcome message
-            self._add_message(
-                "Hello! I'm your grocery shopping assistant. I can help you with:\n"
-                "• Managing your inventory\n"
-                "• Understanding consumption patterns\n"
-                "• Making shopping recommendations\n"
-                "• Answering questions about your groceries\n\n"
-                "How can I help you today?",
-                is_user=False
-            )
+            self._add_message(welcome_message, is_user=False)
 
         except Exception as e:
             self.logger.error(f"Failed to initialize LLM: {e}")
@@ -387,14 +470,15 @@ class ChatPage(QWidget):
         consumption patterns, shopping recommendations, and general grocery-related questions.
         Be concise, friendly, and helpful."""
 
-        # Start worker thread
-        self.chat_worker = ChatWorker(
+        # Start worker thread (with tools if available)
+        self.chat_worker = ChatWorkerWithTools(
             self.llm_service,
             message,
+            use_tools=True,
             images=self.attached_images if self.attached_images else None,
             system_prompt=system_prompt
         )
-        self.chat_worker.response_ready.connect(self._on_response_ready)
+        self.chat_worker.response_ready.connect(self._on_agent_response_ready)
         self.chat_worker.error_occurred.connect(self._on_error)
         self.chat_worker.start()
 
@@ -412,6 +496,96 @@ class ChatPage(QWidget):
         self.input_field.setEnabled(True)
         self.status_label.setText("✅ Ready")
         self.input_field.setFocus()
+
+    def _on_agent_response_ready(self, agent_response: AgentResponse):
+        """Handle agent response with tool calls."""
+        # Display tool executions
+        if agent_response.has_tool_calls:
+            for tool_call, tool_result in zip(
+                agent_response.tool_calls, agent_response.tool_results
+            ):
+                self._display_tool_execution(tool_call, tool_result)
+
+        # Display final response
+        self._add_message(agent_response.response, is_user=False)
+
+        # Re-enable input
+        self.send_btn.setEnabled(True)
+        self.attach_btn.setEnabled(True)
+        self.input_field.setEnabled(True)
+        self.status_label.setText("✅ Ready")
+        self.input_field.setFocus()
+
+    def _display_tool_execution(self, tool_call: ToolCall, tool_result: ToolResult):
+        """Display a tool execution in the chat."""
+        # Remove the stretch from the end
+        if self.chat_layout.count() > 0:
+            last_item = self.chat_layout.itemAt(self.chat_layout.count() - 1)
+            if last_item and last_item.spacerItem():
+                self.chat_layout.removeItem(last_item)
+
+        # Create tool execution widget
+        tool_widget = QFrame()
+        tool_widget.setStyleSheet("""
+            QFrame {
+                background-color: #f0f8ff;
+                border-left: 3px solid #3498db;
+                border-radius: 5px;
+                padding: 10px;
+                margin: 5px 20px;
+            }
+        """)
+
+        tool_layout = QVBoxLayout(tool_widget)
+        tool_layout.setSpacing(5)
+
+        # Tool name
+        tool_label = QLabel(f"🔧 Tool: {tool_call.tool_name}")
+        tool_label.setStyleSheet("font-weight: bold; color: #2c3e50; font-size: 12px;")
+        tool_layout.addWidget(tool_label)
+
+        # Arguments (compact display)
+        if tool_call.arguments:
+            args_text = ", ".join(
+                f"{k}={v!r}" for k, v in list(tool_call.arguments.items())[:3]
+            )
+            if len(tool_call.arguments) > 3:
+                args_text += "..."
+            args_label = QLabel(f"Args: {args_text}")
+            args_label.setStyleSheet("color: #7f8c8d; font-size: 11px;")
+            args_label.setWordWrap(True)
+            tool_layout.addWidget(args_label)
+
+        # Result status
+        if tool_result.success:
+            # Truncate result for display
+            result_str = str(tool_result.result)
+            if len(result_str) > 150:
+                result_str = result_str[:150] + "..."
+
+            result_label = QLabel(f"✓ {result_str}")
+            result_label.setStyleSheet("color: #27ae60; font-size: 11px;")
+        else:
+            result_label = QLabel(f"✗ {tool_result.error}")
+            result_label.setStyleSheet("color: #e74c3c; font-size: 11px; font-weight: bold;")
+
+        result_label.setWordWrap(True)
+        tool_layout.addWidget(result_label)
+
+        # Execution time
+        time_label = QLabel(f"⏱ {tool_result.execution_time_ms:.1f}ms")
+        time_label.setStyleSheet("color: #95a5a6; font-size: 10px;")
+        tool_layout.addWidget(time_label)
+
+        self.chat_layout.addWidget(tool_widget)
+
+        # Add stretch back
+        self.chat_layout.addStretch()
+
+        # Scroll to bottom
+        self.chat_scroll.verticalScrollBar().setValue(
+            self.chat_scroll.verticalScrollBar().maximum()
+        )
 
     def _on_error(self, error: str):
         """Handle LLM error."""

@@ -2,10 +2,11 @@
 LLM Service using Ollama for conversational AI.
 
 This service provides a clean interface for interacting with Gemma 3 4b model
-via Ollama, supporting both text and image inputs (multimodal).
+via Ollama, supporting both text and image inputs (multimodal) and function calling.
 """
 
 import json
+import uuid
 from typing import Optional, List, Dict, Any
 from pathlib import Path
 from pydantic import BaseModel, Field, validator
@@ -16,6 +17,13 @@ except ImportError:
     ollama = None
 
 from ..utils import get_logger
+from ..models.tool_models import (
+    ToolCall,
+    ToolResult,
+    AgentResponse,
+    ToolDefinition,
+)
+from ..tools.executor import ToolExecutor
 
 
 # Pydantic models for receipt parsing validation
@@ -58,17 +66,23 @@ class LLMService:
     """Service for LLM inference using Ollama."""
 
     # def __init__(self, model_name: str = "gemma3:4b"):
-    def __init__(self, model_name: str = "gemma3n:e2b-it-q4_K_M"):
+    def __init__(
+        self,
+        model_name: str = "gemma3n:e2b-it-q4_K_M",
+        tool_executor: Optional[ToolExecutor] = None,
+    ):
     # def __init__(self, model_name: str = "llama3.2:3b"):
         """
         Initialize LLM service.
 
         Args:
             model_name: Name of the Ollama model to use
+            tool_executor: Optional ToolExecutor for function calling
         """
         self.logger = get_logger("llm_service")
         self.model_name = model_name
         self.conversation_history: List[Dict[str, Any]] = []
+        self.tool_executor = tool_executor
         self._check_availability()
 
     def _check_availability(self) -> None:
@@ -539,3 +553,228 @@ Response (JSON only):"""
 
             self.logger.error(f"Failed to parse receipt text: {e}")
             raise
+
+    def chat_with_tools(
+        self,
+        message: str,
+        tool_definitions: Optional[List[ToolDefinition]] = None,
+        max_iterations: int = 5,
+        images: Optional[List[str]] = None,
+        system_prompt: Optional[str] = None,
+    ) -> AgentResponse:
+        """
+        Chat with tool calling support using Ollama's native function calling.
+
+        Args:
+            message: User message
+            tool_definitions: List of available tools (if None, uses all from executor)
+            max_iterations: Maximum number of tool calling iterations
+            images: Optional images for multimodal input
+            system_prompt: Optional system prompt
+
+        Returns:
+            AgentResponse with final response, tool calls, and results
+        """
+        import time
+
+        start_time = time.time()
+
+        if not self.tool_executor:
+            self.logger.warning("No tool executor configured, falling back to regular chat")
+            response = self.chat(message, images, system_prompt, keep_history=True)
+            return AgentResponse(
+                response=response,
+                tool_calls=[],
+                tool_results=[],
+                iterations=1,
+                total_time_ms=(time.time() - start_time) * 1000,
+            )
+
+        # Get tool definitions
+        if tool_definitions is None:
+            tool_definitions = self.tool_executor.get_tool_definitions()
+
+        # Convert to Ollama format
+        ollama_tools = [tool.to_ollama_tool() for tool in tool_definitions]
+
+        # Build system prompt with tool instructions
+        agent_system_prompt = self._build_agent_system_prompt(
+            tool_definitions, system_prompt
+        )
+
+        # Initialize conversation
+        messages = []
+        if agent_system_prompt:
+            messages.append({"role": "system", "content": agent_system_prompt})
+
+        # Add conversation history
+        if self.conversation_history:
+            messages.extend(self.conversation_history)
+
+        # Add current message
+        current_message = {"role": "user", "content": message}
+        if images:
+            current_message["images"] = images
+
+        messages.append(current_message)
+
+        # Track tool calls and results
+        all_tool_calls: List[ToolCall] = []
+        all_tool_results: List[ToolResult] = []
+
+        # Iterative tool calling loop
+        for iteration in range(max_iterations):
+            self.logger.info(f"Agent iteration {iteration + 1}/{max_iterations}")
+
+            try:
+                # Call Ollama with tools
+                response = ollama.chat(
+                    model=self.model_name,
+                    messages=messages,
+                    tools=ollama_tools if ollama_tools else None,
+                )
+
+                assistant_message = response["message"]
+                content = assistant_message.get("content", "")
+
+                # Check if there are tool calls
+                tool_calls_data = assistant_message.get("tool_calls", [])
+
+                if not tool_calls_data:
+                    # No more tool calls, this is the final response
+                    self.logger.info("No tool calls, returning final response")
+
+                    # Update conversation history
+                    self.conversation_history.append(current_message)
+                    self.conversation_history.append(
+                        {"role": "assistant", "content": content}
+                    )
+
+                    return AgentResponse(
+                        response=content,
+                        tool_calls=all_tool_calls,
+                        tool_results=all_tool_results,
+                        iterations=iteration + 1,
+                        total_time_ms=(time.time() - start_time) * 1000,
+                    )
+
+                # Process tool calls
+                self.logger.info(f"Processing {len(tool_calls_data)} tool calls")
+
+                # Add assistant message with tool calls to conversation
+                messages.append(assistant_message)
+
+                for tool_call_data in tool_calls_data:
+                    function_data = tool_call_data.get("function", {})
+                    tool_name = function_data.get("name")
+                    arguments = function_data.get("arguments", {})
+
+                    self.logger.info(f"Executing tool: {tool_name}")
+
+                    # Create ToolCall object
+                    tool_call = ToolCall(
+                        tool_name=tool_name,
+                        arguments=arguments,
+                        call_id=str(uuid.uuid4()),
+                    )
+
+                    # Execute tool
+                    tool_result = self.tool_executor.execute(tool_call)
+
+                    all_tool_calls.append(tool_call)
+                    all_tool_results.append(tool_result)
+
+                    # Add tool result to messages
+                    messages.append(
+                        {
+                            "role": "tool",
+                            "content": tool_result.to_llm_format(),
+                        }
+                    )
+
+                    self.logger.info(
+                        f"Tool {tool_name} executed: {tool_result.status.value}"
+                    )
+
+            except Exception as e:
+                self.logger.error(f"Error in tool calling loop: {e}", exc_info=True)
+                error_response = (
+                    f"I encountered an error while processing your request: {str(e)}"
+                )
+
+                return AgentResponse(
+                    response=error_response,
+                    tool_calls=all_tool_calls,
+                    tool_results=all_tool_results,
+                    iterations=iteration + 1,
+                    total_time_ms=(time.time() - start_time) * 1000,
+                )
+
+        # Max iterations reached
+        self.logger.warning(f"Max iterations ({max_iterations}) reached")
+        return AgentResponse(
+            response="I apologize, but I couldn't complete the request within the allowed steps. Please try breaking down your request or being more specific.",
+            tool_calls=all_tool_calls,
+            tool_results=all_tool_results,
+            iterations=max_iterations,
+            total_time_ms=(time.time() - start_time) * 1000,
+        )
+
+    def _build_agent_system_prompt(
+        self,
+        tool_definitions: List[ToolDefinition],
+        custom_prompt: Optional[str] = None,
+    ) -> str:
+        """
+        Build comprehensive system prompt for agent.
+
+        Args:
+            tool_definitions: Available tools
+            custom_prompt: Optional custom instructions
+
+        Returns:
+            System prompt string
+        """
+        base_prompt = """You are an intelligent grocery shopping assistant with access to tools for managing household inventory, forecasting consumption, and shopping.
+
+Your capabilities:
+- Query inventory to see what's in stock
+- Check when items will run out
+- Generate forecasts for consumption
+- Search for products on Amazon
+- Add items to shopping cart
+- Analyze usage patterns
+- Calculate quantities needed
+- Check budget constraints
+
+Important guidelines:
+1. NEVER place orders - only humans can approve and place orders
+2. Always check inventory before suggesting purchases
+3. Consider user preferences and dietary restrictions
+4. Use forecasts to make proactive suggestions
+5. Be clear about quantities and units
+6. Explain your reasoning when making recommendations
+7. If a tool fails, try an alternative approach or ask for clarification
+
+When answering questions:
+- Be concise and helpful
+- Use tools to get accurate data rather than guessing
+- Provide specific numbers and dates
+- Suggest actionable next steps
+
+Tool usage will be handled automatically by the system."""
+
+        if custom_prompt:
+            base_prompt += f"\n\nAdditional context:\n{custom_prompt}"
+
+        return base_prompt
+
+    def set_tool_executor(self, tool_executor: ToolExecutor) -> None:
+        """
+        Set or update the tool executor.
+
+        Args:
+            tool_executor: ToolExecutor instance
+        """
+        self.tool_executor = tool_executor
+        self.logger.info("Tool executor updated")
