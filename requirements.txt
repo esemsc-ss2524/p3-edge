@@ -55,8 +55,13 @@ matplotlib>=3.8.2
 apscheduler>=3.10.4
 
 # Phase 4: LLM Integration
-# LLM Inference
+# LLM Inference (Local)
 ollama>=0.6.1
+
+# LLM Inference (Cloud - Optional)
+# Uncomment to enable Google Gemini support:
+# langchain-core>=0.1.0
+# langchain-google-genai>=1.0.0
 
 # Development Tools
 pytest>=7.4.3

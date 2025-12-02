@@ -351,11 +351,15 @@ class ChatPage(QWidget):
         try:
             self.llm_service = LLMService(tool_executor=self.tool_executor)
 
-            # Update status based on tool availability
+            # Update status based on provider and tool availability
+            provider_name = self.llm_service.provider_name
+            model_name = self.llm_service.model_name
+
             if self.tool_executor:
-                status_text = "✅ Ready - Intelligent Agent with Tools"
+                status_text = f"✅ Ready - Intelligent Agent ({provider_name}: {model_name})"
                 welcome_message = (
-                    "Hello! I'm your intelligent grocery shopping assistant with access to powerful tools. I can help you with:\n\n"
+                    f"Hello! I'm your intelligent grocery shopping assistant powered by **{provider_name}**. "
+                    "I have access to powerful tools and can help you with:\n\n"
                     "🔍 **Inventory & Data:**\n"
                     "  • Check what's in your inventory\n"
                     "  • Find items expiring soon\n"
@@ -374,9 +378,10 @@ class ChatPage(QWidget):
                     "Ask me anything! I'll use the appropriate tools to help you."
                 )
             else:
-                status_text = "✅ Ready - Gemma 3 4b model loaded"
+                status_text = f"✅ Ready - {provider_name} ({model_name})"
                 welcome_message = (
-                    "Hello! I'm your grocery shopping assistant. I can help you with:\n"
+                    f"Hello! I'm your grocery shopping assistant powered by **{provider_name}**. "
+                    "I can help you with:\n"
                     "• Managing your inventory\n"
                     "• Understanding consumption patterns\n"
                     "• Making shopping recommendations\n"

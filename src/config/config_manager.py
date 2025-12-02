@@ -136,6 +136,18 @@ class ConfigManager:
                 "level": "INFO",
                 "max_file_size_mb": 10,
                 "backup_count": 5
+            },
+            "llm": {
+                "provider": "ollama",  # "ollama" or "gemini"
+                "ollama": {
+                    "model": "gemma3n:e2b-it-q4_K_M",
+                    "base_url": "http://localhost:11434"
+                },
+                "gemini": {
+                    "model": "gemini-2.0-flash-exp",
+                    "temperature": 0.7,
+                    "api_key_env": "GOOGLE_API_KEY"
+                }
             }
         }
 

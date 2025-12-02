@@ -1,0 +1,11 @@
+# Optional dependencies for Google Gemini LLM support
+# Install with: pip install -r requirements-gemini.txt
+
+# LangChain Core
+langchain-core>=0.1.0
+
+# LangChain Google Generative AI (Gemini)
+langchain-google-genai>=1.0.0
+
+# Google Generative AI (underlying SDK)
+google-generativeai>=0.3.0
