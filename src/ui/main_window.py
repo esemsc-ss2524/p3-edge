@@ -28,6 +28,7 @@ from src.ui.inventory_page import InventoryPage
 from src.ui.forecast_page import ForecastPage
 from src.ui.smart_fridge_page import SmartFridgePage
 from src.ui.chat_page import ChatPage
+from src.ui.cart_page import CartPage
 from src.utils import get_logger
 
 
@@ -153,7 +154,7 @@ class MainWindow(QMainWindow):
             "inventory": InventoryPage(self.inventory_service) if self.inventory_service else self._create_placeholder_page("Inventory Management"),
             "forecasts": ForecastPage(self.forecast_service) if self.forecast_service else self._create_placeholder_page("Forecast View"),
             "chat": ChatPage(),
-            "shopping_cart": self._create_placeholder_page("Shopping Cart"),
+            "shopping_cart": CartPage(self.db_manager) if self.db_manager else self._create_placeholder_page("Shopping Cart"),
             "order_history": self._create_placeholder_page("Order History"),
             "smart_fridge": SmartFridgePage(self.db_manager) if self.db_manager else self._create_placeholder_page("Smart Refrigerator"),
             "settings": self._create_placeholder_page("Settings"),
