@@ -35,12 +35,17 @@ from src.utils import get_logger
 class MainWindow(QMainWindow):
     """Main application window with navigation."""
 
-    def __init__(self, db_manager: Optional[DatabaseManager] = None) -> None:
+    def __init__(
+        self,
+        db_manager: Optional[DatabaseManager] = None,
+        tool_executor: Optional = None
+    ) -> None:
         """
         Initialize the main window.
 
         Args:
             db_manager: Database manager instance (optional for Phase 1 compatibility)
+            tool_executor: Tool executor for LLM agent (optional)
         """
         super().__init__()
         self.setWindowTitle("P3-Edge - Autonomous Grocery Assistant")
@@ -48,6 +53,7 @@ class MainWindow(QMainWindow):
 
         # Store dependencies
         self.db_manager = db_manager
+        self.tool_executor = tool_executor
         self.inventory_service = InventoryService(db_manager) if db_manager else None
         self.forecast_service = ForecastService(db_manager) if db_manager else None
         self.logger = get_logger("main_window")
@@ -153,7 +159,7 @@ class MainWindow(QMainWindow):
             "dashboard": self._create_dashboard_page(),
             "inventory": InventoryPage(self.inventory_service) if self.inventory_service else self._create_placeholder_page("Inventory Management"),
             "forecasts": ForecastPage(self.forecast_service) if self.forecast_service else self._create_placeholder_page("Forecast View"),
-            "chat": ChatPage(),
+            "chat": ChatPage(tool_executor=self.tool_executor),
             "shopping_cart": CartPage(self.db_manager) if self.db_manager else self._create_placeholder_page("Shopping Cart"),
             "order_history": self._create_placeholder_page("Order History"),
             "smart_fridge": SmartFridgePage(self.db_manager) if self.db_manager else self._create_placeholder_page("Smart Refrigerator"),

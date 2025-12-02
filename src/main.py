@@ -18,8 +18,57 @@ from src.database.db_manager import create_database_manager
 from src.models import ActionType, Actor, create_audit_log
 from src.services.forecast_service import ForecastService
 from src.services.training_scheduler import TrainingScheduler
+from src.services.cart_service import CartService
+from src.vendors.amazon_client import AmazonClient
 from src.ui import MainWindow
 from src.utils import get_audit_logger, get_logger
+
+# Import tool framework
+from src.tools import get_registry, ToolExecutor
+
+# Import all tool classes
+from src.tools.database_tools import (
+    GetInventoryItemsTool,
+    SearchInventoryTool,
+    GetExpiringItemsTool,
+    GetForecastsTool,
+    GetOrderHistoryTool,
+    GetPendingOrdersTool,
+)
+from src.tools.forecast_tools import (
+    GenerateForecastTool,
+    GetLowStockPredictionsTool,
+    AnalyzeUsageTrendsTool,
+    GetModelPerformanceTool,
+)
+from src.tools.training_tools import (
+    StartModelTrainingTool,
+    GetTrainingStatusTool,
+    GetTrainingHistoryTool,
+)
+from src.tools.vendor_tools import (
+    SearchProductsTool,
+    GetProductDetailsTool,
+    CheckProductAvailabilityTool,
+    AddToCartTool,
+    ViewCartTool,
+    RemoveFromCartTool,
+    UpdateCartQuantityTool,
+)
+from src.tools.utility_tools import (
+    CalculateDaysRemainingTool,
+    CalculateQuantityNeededTool,
+    CheckBudgetTool,
+    GetUserPreferencesTool,
+    ConvertUnitTool,
+)
+from src.tools.blocked_tools import (
+    PlaceOrderTool,
+    ApproveOrderTool,
+    DeleteInventoryItemTool,
+    ModifyPreferencesTool,
+    ClearDatabaseTool,
+)
 
 
 class P3EdgeApplication:
@@ -33,6 +82,9 @@ class P3EdgeApplication:
         self.audit_logger = None
         self.forecast_service = None
         self.training_scheduler = None
+        self.cart_service = None
+        self.vendor_client = None
+        self.tool_executor = None
         self.main_window = None
 
     def initialize(self) -> bool:
@@ -83,11 +135,20 @@ class P3EdgeApplication:
             else:
                 self.logger.info("Training scheduler disabled by configuration")
 
+            # Initialize vendor client and cart service
+            self.vendor_client = AmazonClient()
+            self.cart_service = CartService(self.db_manager)
+            self.logger.info("Vendor client and cart service initialized")
+
+            # Initialize tools for LLM agent
+            self.tool_executor = self._initialize_tools()
+            self.logger.info(f"Tool system initialized with {self.tool_executor.registry.get_tool_count()} tools")
+
             # Log startup
             self.audit_logger.log_action(
                 action_type=ActionType.SYSTEM_STARTUP.value,
                 actor=Actor.SYSTEM.value,
-                details={"version": "0.1.0", "phase": "Phase 1: Foundation"}
+                details={"version": "0.1.0", "phase": "Phase 5: LLM Agent with Tools"}
             )
 
             self.logger.info("Application initialized successfully")
@@ -98,6 +159,83 @@ class P3EdgeApplication:
             import traceback
             traceback.print_exc()
             return False
+
+    def _initialize_tools(self) -> ToolExecutor:
+        """
+        Initialize all tools for the LLM agent.
+
+        Returns:
+            ToolExecutor instance with all tools registered
+        """
+        self.logger.info("Initializing tool system...")
+
+        # Get the global registry
+        registry = get_registry()
+
+        # Initialize and register database tools
+        self.logger.info("Registering database tools...")
+        registry.register(GetInventoryItemsTool(self.db_manager))
+        registry.register(SearchInventoryTool(self.db_manager))
+        registry.register(GetExpiringItemsTool(self.db_manager))
+        registry.register(GetForecastsTool(self.db_manager))
+        registry.register(GetOrderHistoryTool(self.db_manager))
+        registry.register(GetPendingOrdersTool(self.db_manager))
+
+        # Initialize and register forecasting tools
+        self.logger.info("Registering forecasting tools...")
+        registry.register(GenerateForecastTool(self.forecast_service))
+        registry.register(GetLowStockPredictionsTool(self.forecast_service))
+        registry.register(AnalyzeUsageTrendsTool(self.forecast_service))
+        registry.register(GetModelPerformanceTool(self.forecast_service))
+
+        # Initialize and register training tools
+        if self.training_scheduler:
+            self.logger.info("Registering training tools...")
+            registry.register(StartModelTrainingTool(self.training_scheduler))
+            registry.register(GetTrainingStatusTool(self.training_scheduler))
+            registry.register(GetTrainingHistoryTool(self.training_scheduler))
+
+        # Initialize and register vendor tools
+        self.logger.info("Registering vendor and cart tools...")
+        registry.register(SearchProductsTool(self.vendor_client))
+        registry.register(GetProductDetailsTool(self.vendor_client))
+        registry.register(CheckProductAvailabilityTool(self.vendor_client))
+        registry.register(AddToCartTool(self.cart_service, self.vendor_client))
+        registry.register(ViewCartTool(self.cart_service))
+        registry.register(RemoveFromCartTool(self.cart_service))
+        registry.register(UpdateCartQuantityTool(self.cart_service))
+
+        # Initialize and register utility tools
+        self.logger.info("Registering utility tools...")
+        registry.register(CalculateDaysRemainingTool(self.db_manager))
+        registry.register(CalculateQuantityNeededTool(self.db_manager, self.forecast_service))
+        registry.register(CheckBudgetTool(self.db_manager))
+        registry.register(GetUserPreferencesTool(self.db_manager))
+        registry.register(ConvertUnitTool())
+
+        # Initialize and register blocked tools (for safety)
+        self.logger.info("Registering blocked tools (safety guards)...")
+        registry.register(PlaceOrderTool())
+        registry.register(ApproveOrderTool())
+        registry.register(DeleteInventoryItemTool())
+        registry.register(ModifyPreferencesTool())
+        registry.register(ClearDatabaseTool())
+
+        # Mark registry as initialized
+        registry.mark_initialized()
+
+        # Create and return tool executor
+        tool_executor = ToolExecutor(self.db_manager)
+
+        # Log summary
+        summary = registry.get_summary()
+        self.logger.info(f"Tool system ready:")
+        self.logger.info(f"  Total tools: {summary['total_tools']}")
+        self.logger.info(f"  Available: {summary['available_tools']}")
+        self.logger.info(f"  Blocked: {summary['blocked_tools']}")
+        self.logger.info(f"  By category: {summary['by_category']}")
+
+        return tool_executor
 
     def run(self) -> int:
         """
@@ -112,8 +250,11 @@ class P3EdgeApplication:
             app.setApplicationName("P3-Edge")
             app.setOrganizationName("P3-Edge")
 
-            # Create and show main window with db_manager
-            self.main_window = MainWindow(db_manager=self.db_manager)
+            # Create and show main window with db_manager and tool_executor
+            self.main_window = MainWindow(
+                db_manager=self.db_manager,
+                tool_executor=self.tool_executor
+            )
             self.main_window.show()
 
             self.logger.info("Application running...")

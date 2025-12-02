@@ -19,7 +19,9 @@ from src.utils import get_logger
 
 # Optional LLM service import
 try:
-    from src.services.llm_service import LLMService
+    from src.services.llm_factory import create_llm_service
+    from src.config import get_config_manager
+    import os
     LLM_AVAILABLE = True
 except ImportError:
     LLM_AVAILABLE = False
@@ -57,8 +59,33 @@ class ReceiptOCR:
                 self.llm_service = llm_service
             else:
                 try:
-                    self.llm_service = LLMService()
-                    self.logger.info("LLM-enhanced parsing enabled")
+                    # Get configuration and create LLM service via factory
+                    config = get_config_manager()
+                    provider = config.get("llm.provider", "ollama")
+
+                    # Prepare factory arguments
+                    factory_args = {"provider": provider}
+
+                    # Get provider-specific configuration
+                    if provider == "ollama":
+                        model_name = config.get("llm.ollama.model", "gemma3n:e2b-it-q4_K_M")
+                        factory_args["model_name"] = model_name
+                    elif provider == "gemini":
+                        model_name = config.get("llm.gemini.model", "gemini-2.0-flash-exp")
+                        temperature = config.get("llm.gemini.temperature", 0.7)
+                        api_key_env = config.get("llm.gemini.api_key_env", "GOOGLE_API_KEY")
+                        api_key = os.environ.get(api_key_env)
+
+                        if not api_key:
+                            raise ValueError(f"API key not found in environment variable '{api_key_env}'")
+
+                        factory_args["model_name"] = model_name
+                        factory_args["api_key"] = api_key
+                        factory_args["temperature"] = temperature
+
+                    # Create LLM service using factory
+                    self.llm_service = create_llm_service(**factory_args)
+                    self.logger.info(f"LLM-enhanced parsing enabled ({provider}: {model_name})")
                 except Exception as e:
                     self.logger.warning(f"Failed to initialize LLM service: {e}")
                     self.logger.info("Falling back to regex-based parsing")
