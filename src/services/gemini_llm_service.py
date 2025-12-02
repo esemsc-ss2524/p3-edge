@@ -460,6 +460,189 @@ Tool usage will be handled automatically by the system."""
                 "Would you like automatic reordering for essential items?",
             ]
 
+    def parse_receipt_text(self, ocr_text: str) -> Dict[str, Any]:
+        """
+        Parse OCR text from a receipt and extract structured item information.
+
+        Args:
+            ocr_text: Raw text extracted from receipt via OCR
+
+        Returns:
+            Dictionary with store, date, total, and items list
+        """
+        system_prompt = """You are an expert at parsing grocery receipt text. You will receive
+        OCR-extracted text from a receipt that may contain errors, formatting issues, and noise.
+
+        Your task is to extract grocery items with their details in a structured JSON format.
+        Be intelligent about handling OCR errors, common abbreviations, and receipt formatting.
+
+        IMPORTANT: You must ALWAYS respond with ONLY valid JSON, no other text.
+        Do not include markdown code blocks or any explanation."""
+
+        schema = {
+            "store": "string (store name if detected, otherwise null)",
+            "date": "string (receipt date in YYYY-MM-DD format if detected, otherwise null)",
+            "total": "number (total amount if detected, otherwise null)",
+            "items": [
+                {
+                    "name": "string (item name, cleaned and normalized)",
+                    "quantity": "number (quantity, default 1.0 if not specified)",
+                    "unit": "string (unit like 'lb', 'oz', 'kg', 'gallon', 'count', or null)",
+                    "price": "number (item price, or null if not found)",
+                    "confidence": "number (0.0-1.0, your confidence in this extraction)"
+                }
+            ]
+        }
+
+        message = f"""Parse this receipt OCR text and extract the grocery items.
+
+OCR Text:
+{ocr_text}
+
+Required JSON schema:
+{json.dumps(schema, indent=2)}
+
+Rules:
+1. Extract ONLY grocery items (food, beverages, household items)
+2. Skip store headers, footers, payment info, totals, subtotals, tax lines
+3. Clean up item names (remove extra spaces, fix common OCR errors)
+4. Normalize units (lb, oz, kg, g, ct, count, gallon, liter)
+5. If quantity is not specified, use 1.0
+6. Set confidence based on clarity of the text
+7. If price has OCR errors or is unclear, set to null
+8. Return ONLY the JSON object, no markdown or explanation
+
+Response (JSON only):"""
+
+        try:
+            response = self.chat(message, system_prompt=system_prompt, keep_history=False)
+
+            # Clean up response - remove markdown code blocks if present
+            response = response.strip()
+            if response.startswith("```"):
+                lines = response.split("\n")
+                response = "\n".join(lines[1:-1]) if len(lines) > 2 else response
+                if response.startswith("json"):
+                    response = response[4:].strip()
+
+            # Parse JSON
+            parsed_data = json.loads(response)
+
+            self.logger.info(f"Successfully parsed receipt: {len(parsed_data.get('items', []))} items extracted")
+            return parsed_data
+
+        except json.JSONDecodeError as e:
+            self.logger.error(f"Failed to parse LLM response as JSON: {e}")
+            self.logger.debug(f"Response was: {response[:200]}")
+            return {
+                "store": None,
+                "date": None,
+                "total": None,
+                "items": []
+            }
+
+        except Exception as e:
+            self.logger.error(f"Failed to parse receipt text: {e}")
+            return {
+                "store": None,
+                "date": None,
+                "total": None,
+                "items": []
+            }
+
+    def suggest_features(
+        self,
+        item_name: str,
+        current_features: List[str],
+        error_description: str
+    ) -> Dict[str, Any]:
+        """
+        Suggest new features to improve forecasting accuracy.
+
+        Args:
+            item_name: Name of the item
+            current_features: List of current features
+            error_description: Description of the forecast error
+
+        Returns:
+            Dictionary with suggested features and rationale
+        """
+        system_prompt = """You are an expert in time series forecasting and feature engineering.
+        Suggest features that could improve consumption prediction accuracy."""
+
+        message = f"""Item: {item_name}
+        Current features: {current_features}
+        Error: {error_description}
+
+        Suggest 3 new features that might improve forecast accuracy. Return ONLY a JSON object with:
+        {{"suggested_features": ["feature1", "feature2", "feature3"], "rationale": "explanation"}}"""
+
+        try:
+            response = self.chat(message, system_prompt=system_prompt, keep_history=False)
+
+            # Parse JSON response
+            response = response.strip()
+            if response.startswith("```"):
+                lines = response.split("\n")
+                response = "\n".join(lines[1:-1])
+                if response.startswith("json"):
+                    response = response[4:].strip()
+
+            result = json.loads(response)
+            self.logger.info(f"Suggested {len(result.get('suggested_features', []))} features")
+            return result
+
+        except json.JSONDecodeError as e:
+            self.logger.error(f"Failed to parse feature suggestions: {e}")
+            return {
+                "suggested_features": ["day_of_week", "days_until_payday", "season"],
+                "rationale": "These are common time-based features that often improve consumption forecasting."
+            }
+
+    def explain_decision(
+        self,
+        item: str,
+        vendor: str,
+        quantity: float,
+        forecast_confidence: float,
+        price: float,
+        user_preferences: Dict[str, Any]
+    ) -> str:
+        """
+        Generate an explanation for a shopping decision.
+
+        Args:
+            item: Item name
+            vendor: Vendor name
+            quantity: Recommended quantity
+            forecast_confidence: Forecast confidence (0-1)
+            price: Price
+            user_preferences: User preferences
+
+        Returns:
+            Explanation text
+        """
+        system_prompt = """You are a helpful grocery shopping assistant. Explain decisions
+        in a friendly, concise way (2-3 sentences max)."""
+
+        message = f"""Explain why we're recommending:
+        - Item: {item}
+        - Vendor: {vendor}
+        - Quantity: {quantity}
+        - Price: ${price:.2f}
+        - Forecast confidence: {forecast_confidence:.1%}
+        - User preferences: {json.dumps(user_preferences)}
+
+        Provide a brief, friendly explanation."""
+
+        try:
+            response = self.chat(message, system_prompt=system_prompt, keep_history=False)
+            return response
+
+        except Exception as e:
+            self.logger.error(f"Failed to generate explanation: {e}")
+            return f"Based on your consumption pattern, we recommend ordering {quantity} {item} from {vendor} at ${price:.2f}."
+
     # Required properties from BaseLLMService
     @property
     def provider_name(self) -> str:

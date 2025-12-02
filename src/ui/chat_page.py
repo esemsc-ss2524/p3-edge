@@ -24,9 +24,12 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtGui import QTextCursor
 
 from ..services.llm_service import LLMService
+from ..services.llm_factory import create_llm_service
+from ..config import get_config_manager
 from ..models.tool_models import AgentResponse, ToolCall, ToolResult
 from ..utils import get_logger
 import json
+import os
 
 
 class ChatWorker(QThread):
@@ -347,9 +350,48 @@ class ChatPage(QWidget):
         layout.addLayout(action_layout)
 
     def _initialize_llm(self):
-        """Initialize the LLM service."""
+        """Initialize the LLM service using configuration."""
         try:
-            self.llm_service = LLMService(tool_executor=self.tool_executor)
+            # Get configuration
+            config = get_config_manager()
+            provider = config.get("llm.provider", "ollama")
+
+            # Prepare arguments for factory
+            factory_args = {
+                "provider": provider,
+                "tool_executor": self.tool_executor
+            }
+
+            # Get provider-specific configuration
+            if provider == "ollama":
+                model_name = config.get("llm.ollama.model", "gemma3n:e2b-it-q4_K_M")
+                base_url = config.get("llm.ollama.base_url", "http://localhost:11434")
+                factory_args["model_name"] = model_name
+                # Note: base_url is used internally by OllamaLLMService
+
+            elif provider == "gemini":
+                model_name = config.get("llm.gemini.model", "gemini-2.0-flash-exp")
+                temperature = config.get("llm.gemini.temperature", 0.7)
+                api_key_env = config.get("llm.gemini.api_key_env", "GOOGLE_API_KEY")
+
+                # Get API key from environment variable
+                api_key = os.environ.get(api_key_env)
+                if not api_key:
+                    raise ValueError(
+                        f"Google API key not found in environment variable '{api_key_env}'. "
+                        f"Please set it: export {api_key_env}='your-api-key'"
+                    )
+
+                factory_args["model_name"] = model_name
+                factory_args["api_key"] = api_key
+                factory_args["temperature"] = temperature
+
+            else:
+                raise ValueError(f"Unsupported LLM provider: {provider}")
+
+            # Create LLM service using factory
+            self.logger.info(f"Initializing LLM service with provider: {provider}")
+            self.llm_service = create_llm_service(**factory_args)
 
             # Update status based on provider and tool availability
             provider_name = self.llm_service.provider_name
@@ -414,13 +456,30 @@ class ChatPage(QWidget):
             self.send_btn.setEnabled(False)
             self.attach_btn.setEnabled(False)
 
-            # Show error message in chat
-            self._add_message(
-                "Sorry, I'm currently unavailable. Please make sure:\n"
-                "1. Ollama server is running (ollama serve)\n"
-                "2. Gemma model is downloaded (python scripts/download_model.py)",
-                is_user=False
-            )
+            # Show error message in chat with provider-specific instructions
+            config = get_config_manager()
+            provider = config.get("llm.provider", "ollama")
+
+            if provider == "ollama":
+                error_msg = (
+                    "Sorry, I'm currently unavailable. Please make sure:\n"
+                    "1. Ollama server is running (ollama serve)\n"
+                    "2. Model is downloaded (ollama pull gemma3n:e2b-it-q4_K_M)\n\n"
+                    f"Error: {str(e)}"
+                )
+            elif provider == "gemini":
+                api_key_env = config.get("llm.gemini.api_key_env", "GOOGLE_API_KEY")
+                error_msg = (
+                    "Sorry, I'm currently unavailable. Please make sure:\n"
+                    f"1. Environment variable {api_key_env} is set with your Google API key\n"
+                    "2. LangChain Gemini package is installed (pip install langchain-google-genai)\n"
+                    "3. You have an active internet connection\n\n"
+                    f"Error: {str(e)}"
+                )
+            else:
+                error_msg = f"Sorry, I'm currently unavailable. Error: {str(e)}"
+
+            self._add_message(error_msg, is_user=False)
 
     def _add_message(self, text: str, is_user: bool = True):
         """Add a message to the chat history."""
