@@ -68,7 +68,7 @@ class LLMService:
     # def __init__(self, model_name: str = "gemma3:4b"):
     def __init__(
         self,
-        model_name: str = "gemma3n:e2b-it-q4_K_M",
+        model_name: str = "orieg/gemma3-tools:4b",
         tool_executor: Optional[ToolExecutor] = None,
     ):
     # def __init__(self, model_name: str = "llama3.2:3b"):

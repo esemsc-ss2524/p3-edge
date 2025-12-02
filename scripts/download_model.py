@@ -52,20 +52,20 @@ def download_gemma_model() -> None:
 
         # if 'gemma3:4b' in model_names or 'gemma2:latest' in model_names:
         # if 'gemma3n:e2b-it-q4_K_M' in model_names:
-        if 'llama3.2:3b' in model_names:
+        if 'gemma3-tools:4b' in model_names:
             logger.info("Gemma model already downloaded!")
             return
     except Exception as e:
         logger.warning(f"Could not check existing models: {e}")
 
     # Download the model
-    logger.info("Downloading llama3.2:3b model...")
+    logger.info("Downloading orieg/gemma3-tools:4b model...")
     logger.info("This may take several minutes depending on your internet connection.")
     logger.info("Model size: ~4GB")
 
     try:
         # Pull the model
-        response = ollama.pull('llama3.2:3b')
+        response = ollama.pull('orieg/gemma3-tools:4b')
         logger.info("Model downloaded successfully!")
         logger.info(f"Response: {response}")
     except Exception as e:
@@ -81,7 +81,7 @@ def main() -> None:
     logger.info("P3-Edge Model Download - Phase 4")
     logger.info("=" * 60)
 
-    logger.info("\nDownloading llama3.2:3b via Ollama...")
+    logger.info("\nDownloading orieg/gemma3-tools:4b via Ollama...")
     logger.info("This model will be used for:")
     logger.info("  - Conversational interface")
     logger.info("  - Feature engineering suggestions")
