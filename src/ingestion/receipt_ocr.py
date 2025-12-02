@@ -2,12 +2,13 @@
 Receipt OCR pipeline for extracting grocery items from receipt images.
 
 Uses Tesseract OCR with preprocessing for better accuracy.
+Enhanced with LLM-based parsing for improved item extraction.
 """
 
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict, Any
 
 import cv2
 import numpy as np
@@ -15,6 +16,13 @@ import pytesseract
 from PIL import Image
 
 from src.utils import get_logger
+
+# Optional LLM service import
+try:
+    from src.services.llm_service import LLMService
+    LLM_AVAILABLE = True
+except ImportError:
+    LLM_AVAILABLE = False
 
 
 @dataclass
@@ -31,11 +39,35 @@ class ReceiptItem:
 class ReceiptOCR:
     """OCR pipeline for receipt processing."""
 
-    def __init__(self):
-        """Initialize OCR pipeline."""
-        self.logger = get_logger("receipt_ocr")
+    def __init__(self, use_llm: bool = True, llm_service: Optional['LLMService'] = None):
+        """
+        Initialize OCR pipeline.
 
-        # Common grocery item patterns
+        Args:
+            use_llm: Whether to use LLM for parsing (default: True)
+            llm_service: Optional LLM service instance (will create new if not provided)
+        """
+        self.logger = get_logger("receipt_ocr")
+        self.use_llm = use_llm and LLM_AVAILABLE
+
+        # Initialize LLM service if requested
+        self.llm_service = None
+        if self.use_llm:
+            if llm_service:
+                self.llm_service = llm_service
+            else:
+                try:
+                    self.llm_service = LLMService()
+                    self.logger.info("LLM-enhanced parsing enabled")
+                except Exception as e:
+                    self.logger.warning(f"Failed to initialize LLM service: {e}")
+                    self.logger.info("Falling back to regex-based parsing")
+                    self.use_llm = False
+
+        if not self.use_llm:
+            self.logger.info("Using regex-based parsing")
+
+        # Common grocery item patterns (used as fallback)
         self.item_patterns = [
             # Pattern: ITEM NAME ... $PRICE
             r"^([\w\s\-']+?)\s+[\.\s]+\s+\$?(\d+\.\d{2})$",
@@ -199,12 +231,66 @@ class ReceiptOCR:
         """
         Parse grocery items from OCR text.
 
+        Uses LLM-based parsing if available, otherwise falls back to regex.
+
         Args:
             text: OCR extracted text
 
         Returns:
             List of ReceiptItems
         """
+        # Try LLM-based parsing first
+        if self.use_llm and self.llm_service:
+            try:
+                return self._parse_items_with_llm(text)
+            except Exception as e:
+                self.logger.warning(f"LLM parsing failed: {e}, falling back to regex")
+
+        # Fallback to regex-based parsing
+        return self._parse_items_with_regex(text)
+
+    def _parse_items_with_llm(self, text: str) -> List[ReceiptItem]:
+        """
+        Parse items using LLM service.
+
+        Args:
+            text: OCR extracted text
+
+        Returns:
+            List of ReceiptItems
+        """
+        self.logger.info("Using LLM-based parsing")
+
+        # Call LLM service to parse the receipt
+        parsed_data = self.llm_service.parse_receipt_text(text)
+
+        # Convert to ReceiptItem objects
+        items = []
+        for item_data in parsed_data.get("items", []):
+            item = ReceiptItem(
+                name=item_data["name"],
+                quantity=item_data.get("quantity", 1.0),
+                unit=item_data.get("unit"),
+                price=item_data.get("price"),
+                confidence=item_data.get("confidence", 0.7)
+            )
+            items.append(item)
+
+        self.logger.info(f"LLM extracted {len(items)} items")
+        return items
+
+    def _parse_items_with_regex(self, text: str) -> List[ReceiptItem]:
+        """
+        Parse items using regex patterns (fallback method).
+
+        Args:
+            text: OCR extracted text
+
+        Returns:
+            List of ReceiptItems
+        """
+        self.logger.info("Using regex-based parsing")
+
         items = []
         lines = text.strip().split("\n")
 
@@ -224,6 +310,7 @@ class ReceiptOCR:
             if item:
                 items.append(item)
 
+        self.logger.info(f"Regex extracted {len(items)} items")
         return items
 
     def _is_header_footer(self, line: str) -> bool:

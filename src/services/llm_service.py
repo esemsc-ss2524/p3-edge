@@ -8,6 +8,7 @@ via Ollama, supporting both text and image inputs (multimodal).
 import json
 from typing import Optional, List, Dict, Any
 from pathlib import Path
+from pydantic import BaseModel, Field, validator
 
 try:
     import ollama
@@ -15,6 +16,42 @@ except ImportError:
     ollama = None
 
 from ..utils import get_logger
+
+
+# Pydantic models for receipt parsing validation
+class ReceiptItemSchema(BaseModel):
+    """Schema for a single receipt item."""
+
+    name: str = Field(..., description="Item name, cleaned and normalized")
+    quantity: float = Field(default=1.0, ge=0, description="Quantity of the item")
+    unit: Optional[str] = Field(None, description="Unit like 'lb', 'oz', 'kg', 'gallon', etc.")
+    price: Optional[float] = Field(None, ge=0, description="Item price")
+    confidence: float = Field(default=0.7, ge=0.0, le=1.0, description="Confidence score")
+
+    @validator("unit")
+    def normalize_unit(cls, v):
+        """Normalize unit to lowercase."""
+        return v.lower() if v else None
+
+    @validator("name")
+    def clean_name(cls, v):
+        """Clean and normalize item name."""
+        # Remove extra whitespace
+        return " ".join(v.split())
+
+
+class ReceiptParseResult(BaseModel):
+    """Schema for complete receipt parsing result."""
+
+    store: Optional[str] = Field(None, description="Store name")
+    date: Optional[str] = Field(None, description="Receipt date in YYYY-MM-DD format")
+    total: Optional[float] = Field(None, ge=0, description="Total amount")
+    items: List[ReceiptItemSchema] = Field(default_factory=list, description="List of items")
+
+    @validator("items")
+    def validate_items(cls, v):
+        """Ensure at least items list is present."""
+        return v if v is not None else []
 
 
 class LLMService:
@@ -366,3 +403,136 @@ class LLMService:
         except Exception as e:
             self.logger.error(f"Failed to generate explanation: {e}")
             return f"Based on your consumption pattern, we recommend ordering {quantity} {item} from {vendor} at ${price:.2f}."
+
+    def parse_receipt_text(self, ocr_text: str) -> Dict[str, Any]:
+        """
+        Parse OCR text from a receipt and extract structured item information.
+
+        Uses the LLM to intelligently extract grocery items, quantities, prices, and units
+        from raw OCR text, handling various receipt formats and OCR errors.
+
+        Args:
+            ocr_text: Raw text extracted from receipt via OCR
+
+        Returns:
+            Dictionary with:
+                - items: List of dicts with {name, quantity, unit, price, confidence}
+                - store: Store name (if detected)
+                - total: Total amount (if detected)
+                - date: Receipt date (if detected)
+
+        Example:
+            {
+                "store": "Walmart",
+                "date": "2024-12-02",
+                "total": 45.67,
+                "items": [
+                    {
+                        "name": "Organic Milk",
+                        "quantity": 1.0,
+                        "unit": "gallon",
+                        "price": 5.99,
+                        "confidence": 0.95
+                    },
+                    ...
+                ]
+            }
+        """
+        system_prompt = """You are an expert at parsing grocery receipt text. You will receive
+        OCR-extracted text from a receipt that may contain errors, formatting issues, and noise.
+
+        Your task is to extract grocery items with their details in a structured JSON format.
+        Be intelligent about handling OCR errors, common abbreviations, and receipt formatting.
+
+        IMPORTANT: You must ALWAYS respond with ONLY valid JSON, no other text.
+        Do not include markdown code blocks or any explanation."""
+
+        # Define the JSON schema
+        schema = {
+            "store": "string (store name if detected, otherwise null)",
+            "date": "string (receipt date in YYYY-MM-DD format if detected, otherwise null)",
+            "total": "number (total amount if detected, otherwise null)",
+            "items": [
+                {
+                    "name": "string (item name, cleaned and normalized)",
+                    "quantity": "number (quantity, default 1.0 if not specified)",
+                    "unit": "string (unit like 'lb', 'oz', 'kg', 'gallon', 'count', or null)",
+                    "price": "number (item price, or null if not found)",
+                    "confidence": "number (0.0-1.0, your confidence in this extraction)"
+                }
+            ]
+        }
+
+        message = f"""Parse this receipt OCR text and extract the grocery items.
+
+OCR Text:
+{ocr_text}
+
+Required JSON schema:
+{json.dumps(schema, indent=2)}
+
+Rules:
+1. Extract ONLY grocery items (food, beverages, household items)
+2. Skip store headers, footers, payment info, totals, subtotals, tax lines
+3. Clean up item names (remove extra spaces, fix common OCR errors)
+4. Normalize units (lb, oz, kg, g, ct, count, gallon, liter)
+5. If quantity is not specified, use 1.0
+6. Set confidence based on clarity of the text
+7. If price has OCR errors or is unclear, set to null
+8. Return ONLY the JSON object, no markdown or explanation
+
+Response (JSON only):"""
+
+        try:
+            response = self.chat(message, system_prompt=system_prompt, keep_history=False)
+
+            # Clean up response - remove markdown code blocks if present
+            response = response.strip()
+            if response.startswith("```"):
+                lines = response.split('\n')
+                # Remove first and last lines (markdown markers)
+                response = '\n'.join(lines[1:-1]) if len(lines) > 2 else response
+                # Also handle ```json
+                if response.startswith("json"):
+                    response = response[4:].strip()
+
+            # Parse JSON
+            raw_data = json.loads(response)
+
+            # Validate with Pydantic model
+            validated_result = ReceiptParseResult(**raw_data)
+
+            # Convert back to dict for backward compatibility
+            parsed_data = validated_result.dict()
+
+            self.logger.info(f"Successfully parsed receipt: {len(parsed_data['items'])} items extracted")
+            return parsed_data
+
+        except json.JSONDecodeError as e:
+            self.logger.error(f"Failed to parse LLM response as JSON: {e}")
+            self.logger.debug(f"Response was: {response[:200]}")
+
+            # Fallback: return empty structure
+            return {
+                "store": None,
+                "date": None,
+                "total": None,
+                "items": []
+            }
+
+        except Exception as e:
+            # Handle Pydantic validation errors
+            if "ValidationError" in str(type(e).__name__):
+                self.logger.error(f"Schema validation failed: {e}")
+                self.logger.debug(f"Response was: {response[:200]}")
+
+                # Fallback: return empty structure
+                return {
+                    "store": None,
+                    "date": None,
+                    "total": None,
+                    "items": []
+                }
+
+            self.logger.error(f"Failed to parse receipt text: {e}")
+            raise
