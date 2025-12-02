@@ -269,7 +269,7 @@ class ForecastPage(QWidget):
         if not self.forecast_service:
             return
 
-        alerts = self.forecast_service.get_low_stock_predictions(days_threshold=7)
+        alerts = self.forecast_service.get_low_stock_predictions(days_ahead=7)
 
         if not alerts:
             self.alerts_label.setText("No low stock alerts")

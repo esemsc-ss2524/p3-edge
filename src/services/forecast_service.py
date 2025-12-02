@@ -215,13 +215,13 @@ class ForecastService:
 
     def get_low_stock_predictions(
         self,
-        days_threshold: int = 7,
+        days_ahead: int = 7,
     ) -> List[Forecast]:
         """
         Get forecasts predicting low stock within threshold days.
 
         Args:
-            days_threshold: Number of days to look ahead
+            days_ahead: Number of days to look ahead
 
         Returns:
             List of forecasts with predicted runout within threshold
@@ -248,7 +248,7 @@ class ForecastService:
                     days_until = (
                         forecast.predicted_runout_date - datetime.now().date()
                     ).days
-                    if 0 <= days_until <= days_threshold:
+                    if 0 <= days_until <= days_ahead:
                         forecasts.append(forecast)
 
         return forecasts

@@ -221,7 +221,7 @@ def test_low_stock_predictions(forecast_service: ForecastService):
     print("\nLow Stock Predictions (Next 7 Days):")
     print("-" * 40)
 
-    low_stock = forecast_service.get_low_stock_predictions(days_threshold=7)
+    low_stock = forecast_service.get_low_stock_predictions(days_ahead=7)
 
     if not low_stock:
         print("  ✓ No items predicted to run low in the next 7 days")
