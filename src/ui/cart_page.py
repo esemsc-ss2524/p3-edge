@@ -25,6 +25,8 @@ from PyQt6.QtWidgets import (
     QGroupBox,
     QScrollArea,
     QFrame,
+    QHeaderView,
+    QInputDialog
 )
 
 from ..vendors import AmazonClient, VendorProduct, ShoppingCart
@@ -209,6 +211,9 @@ class CartPage(QWidget):
         self.results_table.setColumnWidth(4, 60)
         self.results_table.setColumnWidth(5, 80)
         self.results_table.setColumnWidth(6, 120)
+        self.results_table.verticalHeader().setDefaultSectionSize(42)   # rows tall enough
+        self.results_table.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Fixed)
+
 
         layout.addWidget(self.results_table, stretch=1)
 
@@ -460,7 +465,7 @@ class CartPage(QWidget):
             return
 
         # Ask for quantity
-        quantity, ok = QMessageBox().getDouble(
+        quantity, ok = QInputDialog.getDouble(
             self,
             "Add to Cart",
             f"Enter quantity for {product.name}:",

@@ -125,7 +125,18 @@ class InventoryPage(QWidget):
         ])
 
         # Configure table
+        # Let content columns stretch, but fix actions column
         self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+
+        self.table.verticalHeader().setDefaultSectionSize(42)   # rows tall enough
+        self.table.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Fixed)
+
+
+        # Fix the Actions column width
+        self.table.setColumnWidth(8, 160)
+
         self.table.setAlternatingRowColors(True)
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.setStyleSheet("""
@@ -144,6 +155,8 @@ class InventoryPage(QWidget):
                 border: none;
             }
         """)
+
+
 
         layout.addWidget(self.table)
 
@@ -214,6 +227,10 @@ class InventoryPage(QWidget):
             """)
             delete_btn.clicked.connect(lambda checked, i=item: self._on_delete_item(i))
             actions_layout.addWidget(delete_btn)
+
+            actions_layout.setSizeConstraint(QHBoxLayout.SizeConstraint.SetMinimumSize)
+            edit_btn.setMinimumWidth(60)
+            delete_btn.setMinimumWidth(70)
 
             self.table.setCellWidget(row, 8, actions_widget)
 
