@@ -5,10 +5,12 @@ This module handles all database operations with encryption at rest.
 """
 
 import os
+import json
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+from datetime import datetime
 
 try:
     from pysqlcipher3 import dbapi2 as sqlcipher
@@ -16,6 +18,8 @@ try:
 except ImportError:
     SQLCIPHER_AVAILABLE = False
     import sqlite3 as sqlcipher  # Fallback for development
+
+from ..models.order import Order
 
 
 class DatabaseManager:
@@ -243,6 +247,145 @@ class DatabaseManager:
             backup_conn.close()
 
         print(f"Database backed up to: {backup_path}")
+
+    # Order management methods
+
+    def create_order(self, order: Order) -> None:
+        """
+        Create a new order in the database.
+
+        Args:
+            order: Order object to save
+        """
+        query = """
+            INSERT INTO orders (
+                order_id, vendor, status, items, total_cost,
+                created_at, approved_at, placed_at, user_notes, auto_generated
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
+
+        # Serialize items to JSON
+        items_json = json.dumps([item.dict() for item in order.items])
+
+        params = (
+            order.order_id,
+            order.vendor.value if hasattr(order.vendor, 'value') else str(order.vendor),
+            order.status.value if hasattr(order.status, 'value') else str(order.status),
+            items_json,
+            order.total_cost,
+            order.created_at.isoformat() if order.created_at else None,
+            order.approved_at.isoformat() if order.approved_at else None,
+            order.placed_at.isoformat() if order.placed_at else None,
+            order.user_notes,
+            1 if order.auto_generated else 0
+        )
+
+        self.execute_update(query, params)
+
+    def get_order(self, order_id: str) -> Optional[Order]:
+        """
+        Get an order by ID.
+
+        Args:
+            order_id: Order ID
+
+        Returns:
+            Order object or None if not found
+        """
+        query = """
+            SELECT order_id, vendor, status, items, total_cost,
+                   created_at, approved_at, placed_at, user_notes, auto_generated
+            FROM orders
+            WHERE order_id = ?
+        """
+
+        rows = self.execute_query(query, (order_id,))
+
+        if not rows:
+            return None
+
+        return self._row_to_order(rows[0])
+
+    def update_order(self, order: Order) -> None:
+        """
+        Update an existing order.
+
+        Args:
+            order: Order object with updated values
+        """
+        query = """
+            UPDATE orders
+            SET vendor = ?, status = ?, items = ?, total_cost = ?,
+                approved_at = ?, placed_at = ?, user_notes = ?
+            WHERE order_id = ?
+        """
+
+        # Serialize items to JSON
+        items_json = json.dumps([item.dict() for item in order.items])
+
+        params = (
+            order.vendor.value if hasattr(order.vendor, 'value') else str(order.vendor),
+            order.status.value if hasattr(order.status, 'value') else str(order.status),
+            items_json,
+            order.total_cost,
+            order.approved_at.isoformat() if order.approved_at else None,
+            order.placed_at.isoformat() if order.placed_at else None,
+            order.user_notes,
+            order.order_id
+        )
+
+        self.execute_update(query, params)
+
+    def get_all_orders(self) -> List[Order]:
+        """
+        Get all orders from the database.
+
+        Returns:
+            List of Order objects
+        """
+        query = """
+            SELECT order_id, vendor, status, items, total_cost,
+                   created_at, approved_at, placed_at, user_notes, auto_generated
+            FROM orders
+            ORDER BY created_at DESC
+        """
+
+        rows = self.execute_query(query)
+        return [self._row_to_order(row) for row in rows]
+
+    def _row_to_order(self, row: sqlite3.Row) -> Order:
+        """
+        Convert a database row to an Order object.
+
+        Args:
+            row: Database row
+
+        Returns:
+            Order object
+        """
+        # Parse items from JSON
+        items_data = json.loads(row['items'])
+
+        # Parse dates
+        created_at = datetime.fromisoformat(row['created_at']) if row['created_at'] else datetime.now()
+        approved_at = datetime.fromisoformat(row['approved_at']) if row['approved_at'] else None
+        placed_at = datetime.fromisoformat(row['placed_at']) if row['placed_at'] else None
+
+        # Create Order object - items will be validated by Pydantic
+        order = Order(
+            order_id=row['order_id'],
+            vendor=row['vendor'],
+            status=row['status'],
+            items=items_data,  # Pydantic will convert these dicts to OrderItem objects
+            total_cost=row['total_cost'],
+            created_at=created_at,
+            approved_at=approved_at,
+            placed_at=placed_at,
+            user_notes=row['user_notes'],
+            auto_generated=bool(row['auto_generated'])
+        )
+
+        return order
 
     def close(self) -> None:
         """
