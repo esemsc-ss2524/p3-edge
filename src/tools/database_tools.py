@@ -82,17 +82,17 @@ class GetInventoryItemsTool(BaseTool):
         items = []
         for row in results:
             item = {
-                "item_id": row[0],
-                "name": row[1],
-                "category": row[2],
-                "brand": row[3],
-                "quantity_current": row[4],
-                "quantity_min": row[5],
-                "unit": row[6],
-                "location": row[7],
-                "expiry_date": row[8],
-                "consumption_rate": row[9],
-                "perishable": bool(row[10]),
+                "item_id": row['item_id'],
+                "name": row['name'],
+                "category": row['category'],
+                "brand": row['brand'],
+                "quantity_current": row['quantity_current'],
+                "quantity_min": row['quantity_min'],
+                "unit": row['unit'],
+                "location": row['location'],
+                "expiry_date": row['expiry_date'],
+                "consumption_rate": row['consumption_rate'],
+                "perishable": bool(row['perishable']),
             }
             items.append(item)
 
@@ -145,13 +145,13 @@ class SearchInventoryTool(BaseTool):
         items = []
         for row in results:
             item = {
-                "item_id": row[0],
-                "name": row[1],
-                "category": row[2],
-                "quantity_current": row[3],
-                "unit": row[4],
-                "location": row[5],
-                "expiry_date": row[6],
+                "item_id": row['item_id'],
+                "name": row['name'],
+                "category": row['category'],
+                "quantity_current": row['quantity_current'],
+                "unit": row['unit'],
+                "location": row['location'],
+                "expiry_date": row['expiry_date'],
             }
             items.append(item)
 
@@ -210,16 +210,16 @@ class GetExpiringItemsTool(BaseTool):
 
         items = []
         for row in results:
-            expiry = datetime.fromisoformat(row[5])
+            expiry = datetime.fromisoformat(row['expiry_date'])
             days_until_expiry = (expiry - datetime.now()).days
 
             item = {
-                "item_id": row[0],
-                "name": row[1],
-                "category": row[2],
-                "quantity_current": row[3],
-                "unit": row[4],
-                "expiry_date": row[5],
+                "item_id": row['item_id'],
+                "name": row['name'],
+                "category": row['category'],
+                "quantity_current": row['quantity_current'],
+                "unit": row['unit'],
+                "expiry_date": row['expiry_date'],
                 "days_until_expiry": days_until_expiry,
             }
             items.append(item)
@@ -283,13 +283,13 @@ class GetForecastsTool(BaseTool):
         forecasts = []
         for row in results:
             forecast = {
-                "forecast_id": row[0],
-                "item_name": row[1],
-                "predicted_runout_date": row[2],
-                "confidence": row[3],
-                "recommended_order_date": row[4],
-                "recommended_quantity": row[5],
-                "created_at": row[6],
+                "forecast_id": row['forecast_id'],
+                "item_name": row['name'],
+                "predicted_runout_date": row['predicted_runout_date'],
+                "confidence": row['confidence'],
+                "recommended_order_date": row['recommended_order_date'],
+                "recommended_quantity": row['recommended_quantity'],
+                "created_at": row['created_at'],
             }
             forecasts.append(forecast)
 
@@ -360,14 +360,14 @@ class GetOrderHistoryTool(BaseTool):
         orders = []
         for row in results:
             order = {
-                "order_id": row[0],
-                "vendor": row[1],
-                "status": row[2],
-                "items": row[3],  # JSON string
-                "total_cost": row[4],
-                "created_at": row[5],
-                "placed_at": row[6],
-                "delivered_at": row[7],
+                "order_id": row['order_id'],
+                "vendor": row['vendor'],
+                "status": row['status'],
+                "items": row['items'],  # JSON string
+                "total_cost": row['total_cost'],
+                "created_at": row['created_at'],
+                "placed_at": row['placed_at'],
+                "delivered_at": row['delivered_at'],
             }
             orders.append(order)
 
@@ -413,11 +413,11 @@ class GetPendingOrdersTool(BaseTool):
         orders = []
         for row in results:
             order = {
-                "order_id": row[0],
-                "vendor": row[1],
-                "items": row[2],
-                "total_cost": row[3],
-                "created_at": row[4],
+                "order_id": row['order_id'],
+                "vendor": row['vendor'],
+                "items": row['items'],
+                "total_cost": row['total_cost'],
+                "created_at": row['created_at'],
             }
             orders.append(order)
 

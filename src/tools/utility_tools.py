@@ -256,7 +256,7 @@ class CheckBudgetTool(BaseTool):
         week_result = self.db_manager.execute_query(
             week_query, (week_start.isoformat(),)
         )
-        spent_this_week = week_result[0][0] if week_result[0][0] else 0.0
+        spent_this_week = week_result[0][0] if week_result and week_result[0][0] else 0.0
 
         # Calculate spending this month
         month_start = datetime.now().replace(day=1).date()
@@ -268,7 +268,7 @@ class CheckBudgetTool(BaseTool):
         month_result = self.db_manager.execute_query(
             month_query, (month_start.isoformat(),)
         )
-        spent_this_month = month_result[0][0] if month_result[0][0] else 0.0
+        spent_this_month = month_result[0][0] if month_result and month_result[0][0] else 0.0
 
         return {
             "weekly": {
