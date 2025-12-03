@@ -58,13 +58,14 @@ class ProductSearchWorker(QThread):
 class CartPage(QWidget):
     """Shopping cart page."""
 
-    def __init__(self, db_manager: Optional[DatabaseManager] = None, parent=None):
+    def __init__(self, db_manager: Optional[DatabaseManager] = None, cart_service=None, parent=None):
         super().__init__(parent)
         self.logger = get_logger("cart_page")
         self.db_manager = db_manager
 
         # Initialize services
-        self.cart_service = CartService(db_manager) if db_manager else None
+        # Use provided cart_service or create new one (fallback for backward compatibility)
+        self.cart_service = cart_service if cart_service else (CartService(db_manager) if db_manager else None)
         self.amazon_client = AmazonClient()
 
         # Current search results

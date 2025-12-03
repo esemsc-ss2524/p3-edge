@@ -250,10 +250,11 @@ class P3EdgeApplication:
             app.setApplicationName("P3-Edge")
             app.setOrganizationName("P3-Edge")
 
-            # Create and show main window with db_manager and tool_executor
+            # Create and show main window with db_manager, tool_executor, and cart_service
             self.main_window = MainWindow(
                 db_manager=self.db_manager,
-                tool_executor=self.tool_executor
+                tool_executor=self.tool_executor,
+                cart_service=self.cart_service
             )
             self.main_window.show()
 
