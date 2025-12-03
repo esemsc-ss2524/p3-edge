@@ -10,12 +10,12 @@ from pathlib import Path
 from typing import Dict, Any
 
 # Add src to path
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from services.llm_factory import create_llm_service
-from database.db_manager import DatabaseManager
-from tools.executor import ToolExecutor
-from tools.database_tools import (
+from src.services.llm_factory import create_llm_service
+from src.database.db_manager import DatabaseManager
+from src.tools.executor import ToolExecutor
+from src.tools.database_tools import (
     GetInventoryItemsTool,
     SearchInventoryTool,
     GetExpiringItemsTool,
@@ -23,7 +23,7 @@ from tools.database_tools import (
     GetOrderHistoryTool,
     GetPendingOrdersTool,
 )
-from tools.utility_tools import CheckBudgetTool, GetUserPreferencesTool
+from src.tools.utility_tools import CheckBudgetTool, GetUserPreferencesTool
 
 
 class TestLLMIntegration:

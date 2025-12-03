@@ -61,7 +61,7 @@ class SearchProductsTool(BaseTool):
 
     @property
     def returns(self) -> str:
-        return "List of products with names, prices, ratings, and availability"
+        return "List of products with names, product_ids, prices, ratings, availability, etc. details."
 
     @property
     def examples(self) -> Optional[List[str]]:
@@ -88,7 +88,7 @@ class SearchProductsTool(BaseTool):
                     "price": product.price,
                     "unit": product.unit,
                     "rating": product.rating,
-                    "reviews": product.reviews,
+                    "reviews_count": product.reviews_count,
                     "in_stock": product.in_stock,
                     "prime_eligible": product.prime_eligible,
                     "category": product.category,
@@ -97,7 +97,7 @@ class SearchProductsTool(BaseTool):
 
         return {
             "query": query,
-            "vendor": search_result.vendor.value,
+            "vendor": search_result.vendor,
             "total_results": search_result.total_results,
             "products": products,
         }
@@ -151,7 +151,7 @@ class GetProductDetailsTool(BaseTool):
             "price": product.price,
             "unit": product.unit,
             "rating": product.rating,
-            "reviews": product.reviews,
+            "reviews_count": product.reviews_count,
             "in_stock": product.in_stock,
             "prime_eligible": product.prime_eligible,
             "description": getattr(product, "description", None),

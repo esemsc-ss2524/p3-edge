@@ -235,7 +235,7 @@ class AmazonClient(VendorClient):
                         found_products.append(vendor_product)
 
         # Limit results
-        found_products = found_products[:max_results]
+        found_products = found_products[:int(max_results)]
 
         self.logger.info(f"Found {len(found_products)} products")
 

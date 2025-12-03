@@ -395,6 +395,7 @@ Important guidelines:
 5. Be clear about quantities and units
 6. Explain your reasoning when making recommendations
 7. If a tool fails, try an alternative approach or ask for clarification
+8. When a user asks to search for a product, use Search tool first to get the product IDs if they are required.
 
 TOOL CHAINING INTELLIGENCE:
 When handling requests, think about the logical flow of tools:
