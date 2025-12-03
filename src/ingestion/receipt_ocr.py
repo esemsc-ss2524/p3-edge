@@ -71,7 +71,7 @@ class ReceiptOCR:
                         model_name = config.get("llm.ollama.model", "gemma3n:e2b-it-q4_K_M")
                         factory_args["model_name"] = model_name
                     elif provider == "gemini":
-                        model_name = config.get("llm.gemini.model", "gemini-2.0-flash-exp")
+                        model_name = config.get("llm.gemini.model", "gemini-2.5-flash-lite")
                         temperature = config.get("llm.gemini.temperature", 0.7)
                         api_key_env = config.get("llm.gemini.api_key_env", "GOOGLE_API_KEY")
                         api_key = os.environ.get(api_key_env)

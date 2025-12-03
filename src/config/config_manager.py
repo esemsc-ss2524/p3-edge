@@ -144,8 +144,8 @@ class ConfigManager:
                     "base_url": "http://localhost:11434"
                 },
                 "gemini": {
-                    "model": "gemini-2.0-flash-exp",
-                    "temperature": 0.7,
+                    "model": "gemini-2.5-flash-lite",
+                    "temperature": 0.3,
                     "api_key_env": "GOOGLE_API_KEY"
                 }
             }

@@ -114,15 +114,15 @@ class CartPage(QWidget):
 
         # Product Search Tab
         search_tab = self._create_search_tab()
-        self.tabs.addTab(search_tab, "🔍 Search Products")
+        self.tabs.addTab(search_tab, "Search Products")
 
         # Cart Tab
         cart_tab = self._create_cart_tab()
-        self.tabs.addTab(cart_tab, "🛒 My Cart")
+        self.tabs.addTab(cart_tab, "My Cart")
 
         # Orders Tab
         orders_tab = self._create_orders_tab()
-        self.tabs.addTab(orders_tab, "📦 Orders")
+        self.tabs.addTab(orders_tab, "Orders")
 
         layout.addWidget(self.tabs)
 
@@ -456,7 +456,7 @@ class CartPage(QWidget):
     def _on_search_error(self, error: str):
         """Handle search error."""
         self.search_btn.setEnabled(True)
-        self.search_status.setText(f"❌ Error: {error}")
+        self.search_status.setText(f"Error: {error}")
         QMessageBox.critical(self, "Search Error", f"Failed to search products:\n{error}")
 
     def _add_to_cart(self, product: VendorProduct):

@@ -24,10 +24,10 @@ from PyQt6.QtWidgets import (
 from src.database.db_manager import DatabaseManager
 from src.services import InventoryService
 from src.services.forecast_service import ForecastService
+from src.ui.p3_dashboard import P3Dashboard
 from src.ui.inventory_page import InventoryPage
 from src.ui.forecast_page import ForecastPage
 from src.ui.smart_fridge_page import SmartFridgePage
-from src.ui.chat_page import ChatPage
 from src.ui.cart_page import CartPage
 from src.utils import get_logger
 
@@ -126,12 +126,11 @@ class MainWindow(QMainWindow):
         self.nav_buttons = {}
 
         nav_items = [
-            ("Dashboard", self.show_dashboard),
+            ("P3 Home", self.show_dashboard),
             ("Inventory", self.show_inventory),
             ("Forecasts", self.show_forecasts),
-            ("AI Chat", self.show_chat),
             ("Shopping Cart", self.show_shopping_cart),
-            ("Order History", self.show_order_history),
+            ("Orders", self.show_order_history),
             ("Smart Fridge", self.show_smart_fridge),
             ("Settings", self.show_settings),
         ]
@@ -159,10 +158,9 @@ class MainWindow(QMainWindow):
 
         # Create pages
         self.pages = {
-            "dashboard": self._create_dashboard_page(),
+            "dashboard": P3Dashboard(self.db_manager, tool_executor=self.tool_executor) if self.db_manager else self._create_placeholder_page("Dashboard"),
             "inventory": InventoryPage(self.inventory_service) if self.inventory_service else self._create_placeholder_page("Inventory Management"),
             "forecasts": ForecastPage(self.forecast_service) if self.forecast_service else self._create_placeholder_page("Forecast View"),
-            "chat": ChatPage(tool_executor=self.tool_executor),
             "shopping_cart": CartPage(self.db_manager, cart_service=self.cart_service) if self.db_manager else self._create_placeholder_page("Shopping Cart"),
             "order_history": self._create_placeholder_page("Order History"),
             "smart_fridge": SmartFridgePage(self.db_manager) if self.db_manager else self._create_placeholder_page("Smart Refrigerator"),
@@ -360,43 +358,9 @@ class MainWindow(QMainWindow):
 
     # Navigation methods
     def show_dashboard(self) -> None:
-        """Show the dashboard page."""
+        """Show the P3 dashboard page."""
         self.content_stack.setCurrentWidget(self.pages["dashboard"])
-        self.status_bar.showMessage("Dashboard")
-        self._update_dashboard_stats()
-
-    def _update_dashboard_stats(self) -> None:
-        """Update dashboard statistics."""
-        if not self.inventory_service:
-            return
-
-        try:
-            stats = self.inventory_service.get_stats()
-
-            # Update stat cards
-            if "total_items" in self.stat_cards:
-                self._update_stat_card_value(
-                    self.stat_cards["total_items"],
-                    str(stats.get("total_items", 0))
-                )
-
-            if "low_stock" in self.stat_cards:
-                self._update_stat_card_value(
-                    self.stat_cards["low_stock"],
-                    str(stats.get("low_stock_items", 0))
-                )
-
-        except Exception as e:
-            self.logger.error(f"Failed to update dashboard stats: {e}")
-
-    def _update_stat_card_value(self, card_widget, new_value: str) -> None:
-        """Update the value label in a stat card."""
-        # Find the value label (second child in the layout)
-        layout = card_widget.layout()
-        if layout and layout.count() >= 2:
-            value_label = layout.itemAt(1).widget()
-            if value_label:
-                value_label.setText(new_value)
+        self.status_bar.showMessage("P3 Home")
 
     def show_inventory(self) -> None:
         """Show the inventory page."""

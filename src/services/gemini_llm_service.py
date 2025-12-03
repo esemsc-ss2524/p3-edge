@@ -35,7 +35,7 @@ class GeminiLLMService(BaseLLMService):
 
     def __init__(
         self,
-        model_name: str = "gemini-2.0-flash-exp",
+        model_name: str = "gemini-2.5-flash-lite",
         api_key: Optional[str] = None,
         tool_executor: Optional[ToolExecutor] = None,
         temperature: float = 0.7,
