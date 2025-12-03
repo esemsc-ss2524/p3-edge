@@ -155,7 +155,7 @@ class GeminiLLMService(BaseLLMService):
         self,
         message: str,
         tool_definitions: Optional[List[ToolDefinition]] = None,
-        max_iterations: int = 10,
+        max_iterations: int = 50,
         images: Optional[List[str]] = None,
         system_prompt: Optional[str] = None,
     ) -> AgentResponse:
@@ -394,8 +394,8 @@ Important guidelines:
 4. Use forecasts to make proactive suggestions
 5. Be clear about quantities and units
 6. Explain your reasoning when making recommendations
-7. If a tool fails, try an alternative approach or ask for clarification
-8. When a user asks to search for a product, use Search tool first to get the product IDs if they are required.
+7. When adding items to cart, first search for the product using the Search tool, get the product ID which is not the same as the name and then add to cart.
+8. If a tool fails, try an alternative approach or ask for clarification
 
 TOOL CHAINING INTELLIGENCE:
 When handling requests, think about the logical flow of tools:

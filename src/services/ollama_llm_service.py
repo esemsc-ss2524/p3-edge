@@ -558,7 +558,7 @@ Response (JSON only):"""
         self,
         message: str,
         tool_definitions: Optional[List[ToolDefinition]] = None,
-        max_iterations: int = 10,
+        max_iterations: int = 50,
         images: Optional[List[str]] = None,
         system_prompt: Optional[str] = None,
     ) -> AgentResponse:
