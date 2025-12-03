@@ -249,25 +249,22 @@ class AddToCartTool(BaseTool):
         if not product.in_stock:
             return {"error": f"Product '{product.name}' is currently out of stock"}
 
-        # Create cart item
-        cart_item = CartItem(
-            product_id=product.product_id,
-            name=product.name,
-            price=product.price,
-            quantity=quantity,
-            unit=product.unit,
-        )
-
-        # Add to cart
+        # Add to cart using cart_service API
         try:
-            self.cart_service.add_to_cart(cart_item)
+            # Get vendor name from product
+            vendor = product.vendor
 
-            # Get updated cart
-            cart = self.cart_service.get_current_cart()
+            # Call add_to_cart with correct parameters
+            cart = self.cart_service.add_to_cart(
+                vendor=vendor,
+                vendor_client=self.vendor_client,
+                product=product,
+                quantity=float(quantity)
+            )
 
             return {
                 "success": True,
-                "message": f"Added {quantity} {product.unit} of {product.name} to cart",
+                "message": f"Added {quantity} {product.unit} of {product.name} to {vendor} cart",
                 "cart_total_items": len(cart.items),
                 "cart_total_cost": cart.total,
                 "added_item": {
@@ -294,7 +291,7 @@ class ViewCartTool(BaseTool):
 
     @property
     def description(self) -> str:
-        return "View current shopping cart contents with items and total cost"
+        return "View all active shopping carts with items and total cost"
 
     @property
     def category(self) -> ToolCategory:
@@ -302,37 +299,66 @@ class ViewCartTool(BaseTool):
 
     @property
     def parameters(self) -> List[ToolParameter]:
-        return []
+        return [
+            ToolParameter(
+                name="vendor",
+                type=ToolParameterType.STRING,
+                description="Vendor name to view cart for (optional, if not provided shows all carts)",
+                required=False,
+            ),
+        ]
 
     @property
     def returns(self) -> str:
         return "Cart contents with items, quantities, prices, and total"
 
-    def execute(self) -> Dict[str, Any]:
+    def execute(self, vendor: Optional[str] = None) -> Dict[str, Any]:
         """View cart."""
-        cart = self.cart_service.get_current_cart()
+        if vendor:
+            # Get specific vendor cart
+            cart = self.cart_service.get_cart(vendor)
+            if not cart:
+                return {"message": f"No active cart for vendor: {vendor}"}
 
-        items = []
-        for item in cart.items:
-            items.append(
-                {
-                    "product_id": item.product_id,
-                    "name": item.name,
-                    "quantity": item.quantity,
-                    "unit": item.unit,
-                    "price": item.price,
-                    "subtotal": item.subtotal,
-                }
-            )
+            items = []
+            for item in cart.items:
+                items.append(
+                    {
+                        "product_id": item.product_id,
+                        "name": item.name,
+                        "quantity": item.quantity,
+                        "unit": item.unit,
+                        "price": item.price,
+                        "subtotal": item.subtotal,
+                    }
+                )
 
-        return {
-            "cart_id": cart.cart_id,
-            "vendor": cart.vendor.value,
-            "items": items,
-            "total_items": len(items),
-            "total_cost": cart.total,
-            "created_at": cart.created_at.isoformat() if cart.created_at else None,
-        }
+            return {
+                "cart_id": cart.cart_id,
+                "vendor": cart.vendor,
+                "items": items,
+                "total_items": len(items),
+                "total_cost": cart.total,
+                "created_at": cart.created_at.isoformat() if cart.created_at else None,
+            }
+        else:
+            # Get all carts
+            carts = self.cart_service.get_all_carts()
+            if not carts:
+                return {"message": "No active carts", "carts": []}
+
+            cart_summaries = []
+            for cart in carts:
+                cart_summaries.append({
+                    "vendor": cart.vendor,
+                    "total_items": len(cart.items),
+                    "total_cost": cart.total,
+                })
+
+            return {
+                "message": f"Found {len(carts)} active cart(s)",
+                "carts": cart_summaries
+            }
 
 
 class RemoveFromCartTool(BaseTool):
@@ -362,16 +388,42 @@ class RemoveFromCartTool(BaseTool):
                 description="Product ID of item to remove",
                 required=True,
             ),
+            ToolParameter(
+                name="vendor",
+                type=ToolParameterType.STRING,
+                description="Vendor name (optional, will search all carts if not provided)",
+                required=False,
+            ),
         ]
 
     @property
     def returns(self) -> str:
         return "Updated cart information after removal"
 
-    def execute(self, product_id: str) -> Dict[str, Any]:
+    def execute(self, product_id: str, vendor: Optional[str] = None) -> Dict[str, Any]:
         """Remove from cart."""
         try:
-            cart = self.cart_service.get_current_cart()
+            # If vendor not specified, search all carts
+            if not vendor:
+                all_carts = self.cart_service.get_all_carts()
+                found_vendor = None
+                for cart in all_carts:
+                    for item in cart.items:
+                        if item.product_id == product_id:
+                            found_vendor = cart.vendor
+                            break
+                    if found_vendor:
+                        break
+
+                if not found_vendor:
+                    return {"error": f"Product {product_id} not found in any cart"}
+
+                vendor = found_vendor
+
+            # Get cart to find item name
+            cart = self.cart_service.get_cart(vendor)
+            if not cart:
+                return {"error": f"No active cart for vendor: {vendor}"}
 
             # Find item name before removing
             item_name = None
@@ -381,20 +433,21 @@ class RemoveFromCartTool(BaseTool):
                     break
 
             if not item_name:
-                return {"error": f"Product {product_id} not found in cart"}
+                return {"error": f"Product {product_id} not found in {vendor} cart"}
 
             # Remove item
-            self.cart_service.remove_from_cart(product_id)
+            updated_cart = self.cart_service.remove_from_cart(vendor, product_id)
 
-            # Get updated cart
-            updated_cart = self.cart_service.get_current_cart()
+            if updated_cart:
+                return {
+                    "success": True,
+                    "message": f"Removed {item_name} from {vendor} cart",
+                    "cart_total_items": len(updated_cart.items),
+                    "cart_total_cost": updated_cart.total,
+                }
+            else:
+                return {"error": f"Failed to remove item from cart"}
 
-            return {
-                "success": True,
-                "message": f"Removed {item_name} from cart",
-                "cart_total_items": len(updated_cart.items),
-                "cart_total_cost": updated_cart.total,
-            }
         except Exception as e:
             return {"error": f"Failed to remove from cart: {str(e)}"}
 
@@ -432,18 +485,43 @@ class UpdateCartQuantityTool(BaseTool):
                 description="New quantity",
                 required=True,
             ),
+            ToolParameter(
+                name="vendor",
+                type=ToolParameterType.STRING,
+                description="Vendor name (optional, will search all carts if not provided)",
+                required=False,
+            ),
         ]
 
     @property
     def returns(self) -> str:
         return "Updated cart information with new quantity"
 
-    def execute(self, product_id: str, quantity: int) -> Dict[str, Any]:
+    def execute(self, product_id: str, quantity: int, vendor: Optional[str] = None) -> Dict[str, Any]:
         """Update quantity."""
         try:
-            self.cart_service.update_item_quantity(product_id, quantity)
+            # If vendor not specified, search all carts
+            if not vendor:
+                all_carts = self.cart_service.get_all_carts()
+                found_vendor = None
+                for cart in all_carts:
+                    for item in cart.items:
+                        if item.product_id == product_id:
+                            found_vendor = cart.vendor
+                            break
+                    if found_vendor:
+                        break
 
-            cart = self.cart_service.get_current_cart()
+                if not found_vendor:
+                    return {"error": f"Product {product_id} not found in any cart"}
+
+                vendor = found_vendor
+
+            # Update quantity
+            cart = self.cart_service.update_cart_quantity(vendor, product_id, float(quantity))
+
+            if not cart:
+                return {"error": f"Failed to update quantity"}
 
             # Find updated item
             updated_item = None
@@ -452,15 +530,19 @@ class UpdateCartQuantityTool(BaseTool):
                     updated_item = item
                     break
 
-            return {
-                "success": True,
-                "message": f"Updated {updated_item.name} quantity to {quantity}",
-                "updated_item": {
-                    "name": updated_item.name,
-                    "quantity": updated_item.quantity,
-                    "subtotal": updated_item.subtotal,
-                },
-                "cart_total_cost": cart.total,
-            }
+            if updated_item:
+                return {
+                    "success": True,
+                    "message": f"Updated {updated_item.name} quantity to {quantity} in {vendor} cart",
+                    "updated_item": {
+                        "name": updated_item.name,
+                        "quantity": updated_item.quantity,
+                        "subtotal": updated_item.subtotal,
+                    },
+                    "cart_total_cost": cart.total,
+                }
+            else:
+                return {"error": f"Product not found after update"}
+
         except Exception as e:
             return {"error": f"Failed to update quantity: {str(e)}"}

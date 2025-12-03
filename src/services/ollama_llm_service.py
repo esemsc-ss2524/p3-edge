@@ -108,7 +108,7 @@ class OllamaLLMService(BaseLLMService):
 
             if self._model_name not in model_names:
                 # Also check without tag
-                base_model = self.model_name.split(':')[0]
+                base_model = self._model_name.split(':')[0]
                 if not any(base_model in name for name in model_names):
                     self.logger.error(f"Model {self._model_name} not found")
                     self.logger.info(f"Please download the model: python scripts/download_model.py")

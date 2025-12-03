@@ -387,6 +387,57 @@ class DatabaseManager:
 
         return order
 
+    def get_preferences(self) -> Dict[str, Any]:
+        """
+        Get all user preferences from the database.
+
+        Returns:
+            Dictionary of preference key-value pairs
+        """
+        query = "SELECT key, value FROM preferences"
+        rows = self.execute_query(query)
+
+        preferences = {}
+        for row in rows:
+            key = row['key']
+            value_str = row['value']
+
+            # Try to parse JSON values
+            try:
+                import json
+                preferences[key] = json.loads(value_str)
+            except (json.JSONDecodeError, TypeError):
+                # If not JSON, store as string
+                preferences[key] = value_str
+
+        return preferences
+
+    def set_preference(self, key: str, value: Any) -> None:
+        """
+        Set a user preference in the database.
+
+        Args:
+            key: Preference key
+            value: Preference value (will be JSON-serialized)
+        """
+        import json
+
+        # Serialize value to JSON
+        value_str = json.dumps(value) if not isinstance(value, str) else value
+
+        query = """
+            INSERT INTO preferences (key, value, updated_at)
+            VALUES (?, ?, ?)
+            ON CONFLICT(key) DO UPDATE SET
+                value = excluded.value,
+                updated_at = excluded.updated_at
+        """
+
+        self.execute_update(
+            query,
+            (key, value_str, datetime.now().isoformat())
+        )
+
     def close(self) -> None:
         """
         Close the database manager.
