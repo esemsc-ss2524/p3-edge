@@ -40,9 +40,9 @@ class TestLLMIntegration:
         # Add test data
         self._setup_test_data()
 
-        # Create tool executor
-        self.tool_executor = ToolExecutor()
+        # Create tool executor and register tools
         self._register_tools()
+        self.tool_executor = ToolExecutor(self.db_manager)
 
         # Create LLM service (using Ollama as default)
         try:
@@ -121,18 +121,22 @@ class TestLLMIntegration:
         self.db_manager.set_preference("spend_cap_monthly", 600.0)
 
     def _register_tools(self):
-        """Register all tools with the executor."""
+        """Register all tools with the registry."""
+        from tools.registry import get_registry
+
+        registry = get_registry()
+
         # Database tools
-        self.tool_executor.register_tool(GetInventoryItemsTool(self.db_manager))
-        self.tool_executor.register_tool(SearchInventoryTool(self.db_manager))
-        self.tool_executor.register_tool(GetExpiringItemsTool(self.db_manager))
-        self.tool_executor.register_tool(GetForecastsTool(self.db_manager))
-        self.tool_executor.register_tool(GetOrderHistoryTool(self.db_manager))
-        self.tool_executor.register_tool(GetPendingOrdersTool(self.db_manager))
+        registry.register(GetInventoryItemsTool(self.db_manager))
+        registry.register(SearchInventoryTool(self.db_manager))
+        registry.register(GetExpiringItemsTool(self.db_manager))
+        registry.register(GetForecastsTool(self.db_manager))
+        registry.register(GetOrderHistoryTool(self.db_manager))
+        registry.register(GetPendingOrdersTool(self.db_manager))
 
         # Utility tools
-        self.tool_executor.register_tool(CheckBudgetTool(self.db_manager))
-        self.tool_executor.register_tool(GetUserPreferencesTool(self.db_manager))
+        registry.register(CheckBudgetTool(self.db_manager))
+        registry.register(GetUserPreferencesTool(self.db_manager))
 
     # ========== Phase 1: Database Query Tests ==========
 
@@ -288,10 +292,14 @@ class TestToolChaining:
         self.db_manager = DatabaseManager(str(self.db_path))
         self.db_manager.initialize_database()
 
+        # Register tools with registry
+        from tools.registry import get_registry
+        registry = get_registry()
+        registry.register(GetInventoryItemsTool(self.db_manager))
+        registry.register(CheckBudgetTool(self.db_manager))
+
         # Create tool executor
-        self.tool_executor = ToolExecutor()
-        self.tool_executor.register_tool(GetInventoryItemsTool(self.db_manager))
-        self.tool_executor.register_tool(CheckBudgetTool(self.db_manager))
+        self.tool_executor = ToolExecutor(self.db_manager)
 
     def test_tool_chaining_logic(self):
         """Test that tools can be chained logically."""

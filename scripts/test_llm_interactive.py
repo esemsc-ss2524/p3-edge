@@ -54,8 +54,8 @@ class LLMTestHarness:
             self._setup_test_data()
 
         # Set up tools
-        self.tool_executor = ToolExecutor()
         self._register_tools()
+        self.tool_executor = ToolExecutor(self.db_manager)
 
         # Create LLM service
         self._create_llm_service()
@@ -144,20 +144,24 @@ class LLMTestHarness:
         logger.info("Test data setup complete!")
 
     def _register_tools(self):
-        """Register all tools with the executor."""
+        """Register all tools with the registry."""
+        from tools.registry import get_registry
+
+        registry = get_registry()
+
         # Database tools
-        self.tool_executor.register_tool(GetInventoryItemsTool(self.db_manager))
-        self.tool_executor.register_tool(SearchInventoryTool(self.db_manager))
-        self.tool_executor.register_tool(GetExpiringItemsTool(self.db_manager))
-        self.tool_executor.register_tool(GetForecastsTool(self.db_manager))
-        self.tool_executor.register_tool(GetOrderHistoryTool(self.db_manager))
-        self.tool_executor.register_tool(GetPendingOrdersTool(self.db_manager))
+        registry.register(GetInventoryItemsTool(self.db_manager))
+        registry.register(SearchInventoryTool(self.db_manager))
+        registry.register(GetExpiringItemsTool(self.db_manager))
+        registry.register(GetForecastsTool(self.db_manager))
+        registry.register(GetOrderHistoryTool(self.db_manager))
+        registry.register(GetPendingOrdersTool(self.db_manager))
 
         # Utility tools
-        self.tool_executor.register_tool(CheckBudgetTool(self.db_manager))
-        self.tool_executor.register_tool(GetUserPreferencesTool(self.db_manager))
+        registry.register(CheckBudgetTool(self.db_manager))
+        registry.register(GetUserPreferencesTool(self.db_manager))
 
-        logger.info(f"Registered {len(self.tool_executor.tools)} tools")
+        logger.info(f"Registered {registry.get_tool_count()} tools")
 
     def _create_llm_service(self):
         """Create LLM service."""
