@@ -156,6 +156,51 @@ class StatPill(QFrame):
         self.lbl_value.setText(str(value))
 
 
+class AutoResizingTextEdit(QTextEdit):
+    """
+    A QTextEdit that auto-resizes its height to fit content 
+    up to a maximum height, then enables scrolling.
+    """
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedHeight(50)  # Initial single-line height
+        self.min_height = 50
+        self.max_height = 100    # Approx 3-4 lines depending on font
+        
+        # Style needed for the resize calculation to work correctly
+        self.setStyleSheet("""
+            QTextEdit {
+                background-color: white;
+                border: 1px solid #E5E5E5;
+                border-radius: 20px;
+                padding: 10px 15px;
+                font-size: 14px;
+                color: #2c3e50;
+            }
+            QTextEdit:focus {
+                border: 1px solid #3498db;
+            }
+        """)
+        
+        # Connect text changed signal to resize handler
+        self.textChanged.connect(self.adjust_height)
+
+    def adjust_height(self):
+        # Calculate the height of the document
+        doc_height = self.document().size().height()
+        # Add padding compensation (approx 20px for top/bottom padding)
+        target_height = doc_height + 25 
+        
+        if target_height > self.max_height:
+            self.setFixedHeight(self.max_height)
+            self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        else:
+            # Snap to min_height if empty, otherwise grow
+            new_h = max(int(target_height), self.min_height)
+            self.setFixedHeight(new_h)
+            self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+
+
 class P3Dashboard(QWidget):
     """
     Overhauled Autonomous Agent Interface.
@@ -183,22 +228,22 @@ class P3Dashboard(QWidget):
         self.stats_timer.start(30000) 
 
     def _setup_ui(self):
-        """Set up the modern 2-pane UI."""
-        # Main background
-        self.setStyleSheet("background-color: #F5F7FA;") # Very light grey for the overall app
+        """Set up the modern 2-pane UI with specific ratios."""
+        self.setStyleSheet("background-color: #F5F7FA;")
         
         main_layout = QHBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
 
-        # --- LEFT PANEL: The Character (P3) ---
-        # We make this background WHITE to blend with the AVI/GIF background
+        # ==========================================================
+        # LEFT PANEL: The Character (P3) - 50% Width
+        # ==========================================================
         left_panel = QFrame()
         left_panel.setStyleSheet("background-color: #FFFFFF; border-right: 1px solid #E5E5E5;")
         left_layout = QVBoxLayout(left_panel)
         left_layout.setContentsMargins(20, 40, 20, 40)
         
-        # 1. Status Indicator (Tiny pill at top left)
+        # 1. Status Indicator
         status_container = QHBoxLayout()
         self.status_dot = QLabel("●")
         self.status_dot.setStyleSheet("color: #27ae60; font-size: 12px;")
@@ -209,47 +254,45 @@ class P3Dashboard(QWidget):
         status_container.addStretch()
         left_layout.addLayout(status_container)
 
-        # 2. Character Stage (The main focus)
+        # 2. Character Stage
         self.character_label = QLabel()
         self.character_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        # ScaledContents works for images, but for Movies it can be tricky.
-        # We align center so a head-to-toe character stands in the middle.
         self.character_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.character_label.setCursor(Qt.CursorShape.PointingHandCursor)
         self.character_label.mousePressEvent = lambda event: self._on_character_clicked()
-        
         left_layout.addWidget(self.character_label, stretch=10)
 
-        # 3. HUD Stats (Floating at the bottom of character panel)
+        # 3. HUD Stats
         stats_layout = QHBoxLayout()
         stats_layout.setSpacing(15)
-        
-        # Define stats: (Key, Icon, Label, Color)
         stats_config = [
             ("inventory", "📦", "Items", "#3498db"),
             ("low_stock", "⚠️", "Low", "#e74c3c"),
             ("pending", "🛒", "Cart", "#f39c12")
         ]
-        
-        stats_layout.addStretch() # Center the pills
+        stats_layout.addStretch()
         for key, icon, label, color in stats_config:
             pill = StatPill(icon, label, "-", color)
             self.stat_widgets[key] = pill
             stats_layout.addWidget(pill)
         stats_layout.addStretch()
-        
         left_layout.addLayout(stats_layout)
         
-        # Add Left Panel to Main
-        main_layout.addWidget(left_panel, stretch=4) # 40% width
+        # Add Left Panel with Stretch 1 (50% relative to total 2)
+        main_layout.addWidget(left_panel, stretch=1) 
 
-        # --- RIGHT PANEL: The Chat ---
+        # ==========================================================
+        # RIGHT PANEL: The Chat - 50% Width
+        # ==========================================================
         right_panel = QWidget()
         right_panel.setStyleSheet("background-color: #F5F7FA;")
+        
+        # We use a VBox to split History (90%) and Input (10%)
         right_layout = QVBoxLayout(right_panel)
         right_layout.setContentsMargins(0, 0, 0, 0)
+        right_layout.setSpacing(0)
         
-        # 1. Chat Scroll Area
+        # --- 1. Chat History Section (approx 90%) ---
         self.chat_scroll = QScrollArea()
         self.chat_scroll.setWidgetResizable(True)
         self.chat_scroll.setFrameShape(QFrame.Shape.NoFrame)
@@ -264,45 +307,33 @@ class P3Dashboard(QWidget):
         self.chat_layout = QVBoxLayout(self.chat_container)
         self.chat_layout.setContentsMargins(20, 20, 20, 20)
         self.chat_layout.setSpacing(15)
-        self.chat_layout.addStretch() # Push messages to bottom
+        self.chat_layout.addStretch()
         
         self.chat_scroll.setWidget(self.chat_container)
-        right_layout.addWidget(self.chat_scroll)
+        
+        # Add scroll area with high stretch factor (e.g., 9 or 90)
+        right_layout.addWidget(self.chat_scroll, stretch=90)
 
-        # 2. Input Area (Floating Capsule Design)
-        input_wrapper = QFrame()
-        input_wrapper.setStyleSheet("background-color: #F5F7FA;") # Match background
-        input_layout = QHBoxLayout(input_wrapper)
+        # --- 2. Input Section (approx 10% - or minimal required space) ---
+        input_container = QWidget()
+        input_container.setStyleSheet("background-color: #F5F7FA;") # Match background
+        input_layout = QHBoxLayout(input_container)
         input_layout.setContentsMargins(20, 10, 20, 20)
-        
-        # The white input capsule
-        self.input_field = QTextEdit()
-        self.input_field.setPlaceholderText("Ask P3 about groceries, recipes, or inventory...")
-        self.input_field.setMaximumHeight(50)
-        self.input_field.setStyleSheet("""
-            QTextEdit {
-                background-color: white;
-                border: 1px solid #E5E5E5;
-                border-radius: 25px;
-                padding: 12px 20px;
-                font-size: 14px;
-                color: #2c3e50;
-                selection-background-color: #3498db;
-            }
-            QTextEdit:focus {
-                border: 1px solid #3498db;
-            }
-        """)
-        
-        # Send Button (Circle)
+        input_layout.setAlignment(Qt.AlignmentFlag.AlignBottom) # Anchor to bottom
+
+        # Use our new AutoResizingTextEdit
+        self.input_field = AutoResizingTextEdit()
+        self.input_field.setPlaceholderText("Ask P3 about groceries, recipes...")
+
+        # Send Button
         self.send_btn = QPushButton("➤")
-        self.send_btn.setFixedSize(50, 50)
+        self.send_btn.setFixedSize(45, 45) # Slightly smaller to match default input height
         self.send_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.send_btn.setStyleSheet("""
             QPushButton {
                 background-color: #3498db;
                 color: white;
-                border-radius: 25px;
+                border-radius: 22px;
                 font-size: 18px;
                 font-weight: bold;
                 padding-bottom: 3px; 
@@ -311,17 +342,18 @@ class P3Dashboard(QWidget):
             QPushButton:pressed { background-color: #21618c; transform: scale(0.95); }
         """)
         self.send_btn.clicked.connect(self._send_message)
-        
-        # Connect Enter key in TextEdit to send
-        # (Requires event filter or subclass, simple implementation here checks text changed)
-        
+
         input_layout.addWidget(self.input_field)
         input_layout.addWidget(self.send_btn)
         
-        right_layout.addWidget(input_wrapper)
+        # Add input container with lower stretch factor (e.g., 10)
+        # However, for input fields, it's often better to use stretch=0 
+        # so it only takes what it needs, and the chat history takes "the rest".
+        # But to strictly follow your request of "10% input section":
+        right_layout.addWidget(input_container, stretch=10)
         
-        # Add Right Panel to Main
-        main_layout.addWidget(right_panel, stretch=6) # 60% width
+        # Add Right Panel with Stretch 1 (50% relative to total 2)
+        main_layout.addWidget(right_panel, stretch=1)
 
         # Initialize Default Animation
         self._play_idle_animation()
