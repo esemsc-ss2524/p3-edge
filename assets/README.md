@@ -9,26 +9,42 @@ The idle animation showing P3 standing/waiting. This plays continuously when P3 
 
 **Specifications:**
 - Format: Animated GIF
-- Recommended size: 200x200 pixels or similar square aspect
+- Recommended size: 400x400 pixels (fills 80% of left panel)
 - Loop: Infinite
 - Style: Friendly, approachable character
+- **When it plays**: Default state, after wave/thinking animations complete
 
 ### p3_wave.gif
-The waving animation showing P3 greeting or acknowledging the user. This plays when:
-- User sends a message
-- P3 starts thinking/processing
-- P3 wants to get attention
+The waving animation showing P3 greeting or acknowledging the user.
 
 **Specifications:**
 - Format: Animated GIF
-- Recommended size: 200x200 pixels (same as idle)
+- Recommended size: 400x400 pixels (same as idle)
 - Duration: ~2 seconds
 - Loop: Once (returns to idle after playing)
 - Style: Enthusiastic, welcoming gesture
+- **When it plays**: When you click on the character
+
+### p3_thinking.gif
+The thinking animation showing P3 processing your request.
+
+**Specifications:**
+- Format: Animated GIF
+- Recommended size: 400x400 pixels (same as idle)
+- Loop: Continuous (while thinking)
+- Style: Contemplative, focused expression
+- **When it plays**: When LLM is processing your message
 
 ## Usage
 
 The animations are loaded automatically by the P3Dashboard UI component. If the GIF files are not found, the UI will show a robot emoji (🤖) as a placeholder.
+
+## Animation Behavior
+
+- **Idle** → Plays continuously when P3 is waiting
+- **Click character** → Plays wave animation (2s) → Returns to idle
+- **Send message** → Plays thinking animation → Returns to idle when done
+- **No GIFs?** → Shows 🤖 emoji placeholder (fully functional)
 
 ## Creating Your Own Animations
 
@@ -39,8 +55,8 @@ You can create custom animations using:
 - Hand-drawn frames compiled into GIF
 
 Make sure to maintain consistency in:
-- Character design between idle and wave
-- Size and positioning
+- Character design between idle, wave, and thinking
+- Size and positioning (400x400px recommended)
 - Color scheme (matches UI theme)
 - Frame rate (smooth but not too fast)
 
@@ -49,7 +65,15 @@ Make sure to maintain consistency in:
 ⚠️ **Placeholder Mode**: The character animations are not yet provided. The UI will display a robot emoji until the GIF files are added to this directory.
 
 To add your character:
-1. Create or obtain `p3_idle.gif` and `p3_wave.gif`
+1. Create or obtain `p3_idle.gif`, `p3_wave.gif`, and `p3_thinking.gif`
 2. Place them in this `assets/` directory
 3. Restart the application
 4. P3 will now display with your character!
+
+## Size Guidelines
+
+The character area takes up 80% of the vertical space in the left panel, so animations should be:
+- Large enough to be visible (400x400px+)
+- Square aspect ratio preferred
+- Not too detailed (will be scaled to fit)
+- Optimized file size (keep under 2MB for smooth loading)

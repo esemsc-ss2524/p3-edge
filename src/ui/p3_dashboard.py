@@ -191,21 +191,23 @@ class P3Dashboard(QWidget):
         subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(subtitle)
 
-        # Character Animation
+        # Character Animation (80% of vertical space)
         character_frame = QFrame()
         character_frame.setStyleSheet("""
             QFrame {
                 background-color: #ecf0f1;
                 border-radius: 10px;
-                min-height: 200px;
-                max-height: 200px;
             }
         """)
         char_layout = QVBoxLayout(character_frame)
 
         self.character_label = QLabel()
         self.character_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.character_label.setScaledContents(False)
+        self.character_label.setScaledContents(True)
+        self.character_label.setCursor(Qt.CursorShape.PointingHandCursor)
+
+        # Make character clickable to wave
+        self.character_label.mousePressEvent = lambda event: self._on_character_clicked()
 
         # Try to load idle animation
         idle_gif_path = Path("assets/p3_idle.gif")
@@ -218,12 +220,12 @@ class P3Dashboard(QWidget):
             self.character_label.setText("🤖")
             self.character_label.setStyleSheet("""
                 QLabel {
-                    font-size: 80px;
+                    font-size: 120px;
                 }
             """)
 
         char_layout.addWidget(self.character_label)
-        layout.addWidget(character_frame)
+        layout.addWidget(character_frame, stretch=8)  # 80% of space
 
         # System Status
         self.status_label = QLabel("● Online")
@@ -265,28 +267,30 @@ class P3Dashboard(QWidget):
             self.stat_cards[key] = card
             layout.addWidget(card)
 
-        layout.addStretch()
+        layout.addStretch(2)  # 20% remaining space
         return panel
 
     def _create_stat_card(self, title: str, value: str, color: str):
-        """Create a stat card."""
+        """Create a compact stat card."""
         card = QFrame()
+        card.setMaximumHeight(60)  # Smaller cards
         card.setStyleSheet(f"""
             QFrame {{
                 background-color: {color};
-                border-radius: 8px;
-                padding: 15px;
+                border-radius: 6px;
+                padding: 8px 12px;
             }}
         """)
 
         card_layout = QVBoxLayout(card)
-        card_layout.setSpacing(5)
+        card_layout.setSpacing(2)
+        card_layout.setContentsMargins(0, 0, 0, 0)
 
         title_label = QLabel(title)
         title_label.setStyleSheet("""
             QLabel {
                 color: white;
-                font-size: 12px;
+                font-size: 10px;
                 font-weight: 600;
             }
         """)
@@ -295,7 +299,7 @@ class P3Dashboard(QWidget):
         value_label.setStyleSheet("""
             QLabel {
                 color: white;
-                font-size: 24px;
+                font-size: 18px;
                 font-weight: bold;
             }
         """)
@@ -513,8 +517,8 @@ class P3Dashboard(QWidget):
         self.send_btn.setEnabled(False)
         self.chat_status.setText("P3 is thinking...")
 
-        # Play waving animation if available
-        self._play_wave_animation()
+        # Play thinking animation if available
+        self._play_thinking_animation()
 
         # Start chat worker
         self.chat_worker = ChatWorker(self.llm_service, message)
@@ -589,6 +593,10 @@ class P3Dashboard(QWidget):
 
             self.logger.info("Chat history cleared")
 
+    def _on_character_clicked(self):
+        """Handle character click - play wave animation."""
+        self._play_wave_animation()
+
     def _play_wave_animation(self):
         """Play waving animation."""
         wave_gif_path = Path("assets/p3_wave.gif")
@@ -599,6 +607,20 @@ class P3Dashboard(QWidget):
 
             # Return to idle after 2 seconds
             QTimer.singleShot(2000, self._play_idle_animation)
+        else:
+            # If no wave animation, just pulse the emoji
+            self.logger.info("Wave animation triggered (no GIF found)")
+
+    def _play_thinking_animation(self):
+        """Play thinking animation while LLM processes."""
+        thinking_gif_path = Path("assets/p3_thinking.gif")
+        if thinking_gif_path.exists() and hasattr(self, 'character_label'):
+            thinking_movie = QMovie(str(thinking_gif_path))
+            self.character_label.setMovie(thinking_movie)
+            thinking_movie.start()
+        else:
+            # Fallback: use wave or just stay idle
+            self.logger.debug("Thinking animation not found, using idle")
 
     def _play_idle_animation(self):
         """Play idle animation."""

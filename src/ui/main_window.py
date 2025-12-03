@@ -358,43 +358,9 @@ class MainWindow(QMainWindow):
 
     # Navigation methods
     def show_dashboard(self) -> None:
-        """Show the dashboard page."""
+        """Show the P3 dashboard page."""
         self.content_stack.setCurrentWidget(self.pages["dashboard"])
-        self.status_bar.showMessage("Dashboard")
-        self._update_dashboard_stats()
-
-    def _update_dashboard_stats(self) -> None:
-        """Update dashboard statistics."""
-        if not self.inventory_service:
-            return
-
-        try:
-            stats = self.inventory_service.get_stats()
-
-            # Update stat cards
-            if "total_items" in self.stat_cards:
-                self._update_stat_card_value(
-                    self.stat_cards["total_items"],
-                    str(stats.get("total_items", 0))
-                )
-
-            if "low_stock" in self.stat_cards:
-                self._update_stat_card_value(
-                    self.stat_cards["low_stock"],
-                    str(stats.get("low_stock_items", 0))
-                )
-
-        except Exception as e:
-            self.logger.error(f"Failed to update dashboard stats: {e}")
-
-    def _update_stat_card_value(self, card_widget, new_value: str) -> None:
-        """Update the value label in a stat card."""
-        # Find the value label (second child in the layout)
-        layout = card_widget.layout()
-        if layout and layout.count() >= 2:
-            value_label = layout.itemAt(1).widget()
-            if value_label:
-                value_label.setText(new_value)
+        self.status_bar.showMessage("P3 Home")
 
     def show_inventory(self) -> None:
         """Show the inventory page."""
