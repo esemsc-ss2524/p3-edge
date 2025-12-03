@@ -123,13 +123,6 @@ class GetLowStockPredictionsTool(BaseTool):
                 required=False,
                 default=7,
             ),
-            ToolParameter(
-                name="min_confidence",
-                type=ToolParameterType.NUMBER,
-                description="Minimum forecast confidence (0.0-1.0, default: 0.5)",
-                required=False,
-                default=0.5,
-            ),
         ]
 
     @property
@@ -137,11 +130,11 @@ class GetLowStockPredictionsTool(BaseTool):
         return "List of items predicted to run out soon with confidence scores"
 
     def execute(
-        self, days: int = 7, min_confidence: float = 0.5
+        self, days: int = 7
     ) -> List[Dict[str, Any]]:
         """Get predictions."""
         predictions = self.forecast_service.get_low_stock_predictions(
-            days_ahead=days, min_confidence=min_confidence
+            days_ahead=days
         )
 
         results = []
@@ -160,7 +153,7 @@ class GetLowStockPredictionsTool(BaseTool):
                     if forecast.predicted_runout_date
                     else None,
                     "days_until_runout": (
-                        forecast.predicted_runout_date - datetime.now()
+                        forecast.predicted_runout_date - datetime.now().date()
                     ).days
                     if forecast.predicted_runout_date
                     else None,

@@ -44,11 +44,11 @@ class TestLLMIntegration:
         self._register_tools()
         self.tool_executor = ToolExecutor(self.db_manager)
 
-        # Create LLM service (using Ollama as default)
+        # Create LLM service
         try:
             self.llm_service = create_llm_service(
-                provider="ollama",
-                model_name="gemma3n:e2b-it-q4_K_M",
+                provider="gemini",
+                model_name="gemini-2.5-flash-lite",
                 tool_executor=self.tool_executor
             )
         except Exception as e:
@@ -122,7 +122,7 @@ class TestLLMIntegration:
 
     def _register_tools(self):
         """Register all tools with the registry."""
-        from tools.registry import get_registry
+        from src.tools.registry import get_registry
 
         registry = get_registry()
 
@@ -293,7 +293,7 @@ class TestToolChaining:
         self.db_manager.initialize_database()
 
         # Register tools with registry
-        from tools.registry import get_registry
+        from src.tools.registry import get_registry
         registry = get_registry()
         registry.register(GetInventoryItemsTool(self.db_manager))
         registry.register(CheckBudgetTool(self.db_manager))
