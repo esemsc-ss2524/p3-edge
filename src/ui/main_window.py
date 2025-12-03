@@ -126,13 +126,13 @@ class MainWindow(QMainWindow):
         self.nav_buttons = {}
 
         nav_items = [
-            ("🤖 P3 Home", self.show_dashboard),
-            ("📦 Inventory", self.show_inventory),
-            ("📊 Forecasts", self.show_forecasts),
-            ("🛒 Shopping Cart", self.show_shopping_cart),
-            ("📜 Orders", self.show_order_history),
-            ("🌡️ Smart Fridge", self.show_smart_fridge),
-            ("⚙️ Settings", self.show_settings),
+            ("P3 Home", self.show_dashboard),
+            ("Inventory", self.show_inventory),
+            ("Forecasts", self.show_forecasts),
+            ("Shopping Cart", self.show_shopping_cart),
+            ("Orders", self.show_order_history),
+            ("Smart Fridge", self.show_smart_fridge),
+            ("Settings", self.show_settings),
         ]
 
         for label, callback in nav_items:

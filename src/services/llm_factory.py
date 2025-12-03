@@ -54,7 +54,7 @@ def create_llm_service(
         # Create Gemini service
         service = create_llm_service(
             provider="gemini",
-            model_name="gemini-2.0-flash-exp",
+            model_name="gemini-2.5-flash-lite",
             api_key="your-api-key",
             tool_executor=executor
         )
@@ -79,7 +79,7 @@ def create_llm_service(
         from .gemini_llm_service import GeminiLLMService
 
         if model_name is None:
-            model_name = "gemini-2.0-flash-exp"
+            model_name = "gemini-2.5-flash-lite"
 
         logger.info(f"Initializing Gemini service with model: {model_name}")
         return GeminiLLMService(

@@ -370,7 +370,7 @@ class ChatPage(QWidget):
                 # Note: base_url is used internally by OllamaLLMService
 
             elif provider == "gemini":
-                model_name = config.get("llm.gemini.model", "gemini-2.0-flash-exp")
+                model_name = config.get("llm.gemini.model", "gemini-2.5-flash-lite")
                 temperature = config.get("llm.gemini.temperature", 0.7)
                 api_key_env = config.get("llm.gemini.api_key_env", "GOOGLE_API_KEY")
 
@@ -670,7 +670,7 @@ class ChatPage(QWidget):
             self,
             "Select Image",
             "",
-            "Images (*.png *.jpg *.jpeg *.bmp *.gif)"
+            "Images (*.png *.jpg *.jpeg *.bmp *.webp)"
         )
 
         if file_path:

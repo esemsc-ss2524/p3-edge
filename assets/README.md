@@ -4,7 +4,7 @@ This directory contains character animations for the P3-Edge autonomous grocery 
 
 ## Required Files
 
-### p3_idle.gif
+### p3_idle.webp
 The idle animation showing P3 standing/waiting. This plays continuously when P3 is not actively processing.
 
 **Specifications:**
@@ -14,7 +14,7 @@ The idle animation showing P3 standing/waiting. This plays continuously when P3 
 - Style: Friendly, approachable character
 - **When it plays**: Default state, after wave/thinking animations complete
 
-### p3_wave.gif
+### p3_wave.webp
 The waving animation showing P3 greeting or acknowledging the user.
 
 **Specifications:**
@@ -25,7 +25,7 @@ The waving animation showing P3 greeting or acknowledging the user.
 - Style: Enthusiastic, welcoming gesture
 - **When it plays**: When you click on the character
 
-### p3_thinking.gif
+### p3_thinking.webp
 The thinking animation showing P3 processing your request.
 
 **Specifications:**
@@ -65,7 +65,7 @@ Make sure to maintain consistency in:
 ⚠️ **Placeholder Mode**: The character animations are not yet provided. The UI will display a robot emoji until the GIF files are added to this directory.
 
 To add your character:
-1. Create or obtain `p3_idle.gif`, `p3_wave.gif`, and `p3_thinking.gif`
+1. Create or obtain `p3_idle.webp`, `p3_wave.webp`, and `p3_thinking.webp`
 2. Place them in this `assets/` directory
 3. Restart the application
 4. P3 will now display with your character!

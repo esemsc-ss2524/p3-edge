@@ -82,7 +82,7 @@ pip install langchain-google-genai
   "llm": {
     "provider": "gemini",
     "gemini": {
-      "model": "gemini-2.0-flash-exp",
+      "model": "gemini-2.5-flash-lite",
       "temperature": 0.7,
       "api_key_env": "GOOGLE_API_KEY"
     }
@@ -136,12 +136,12 @@ p3-edge/config/app_config.json
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `model` | string | `gemini-2.0-flash-exp` | Gemini model name |
+| `model` | string | `gemini-2.5-flash-lite` | Gemini model name |
 | `temperature` | number | 0.7 | Sampling temperature (0.0-1.0) |
 | `api_key_env` | string | `GOOGLE_API_KEY` | Environment variable for API key |
 
 **Available Models:**
-- `gemini-2.0-flash-exp` - Latest Gemini 2.0 Flash (experimental)
+- `gemini-2.5-flash-lite` - Latest Gemini 2.0 Flash (experimental)
 - `gemini-1.5-pro` - Gemini 1.5 Pro (most capable)
 - `gemini-1.5-flash` - Gemini 1.5 Flash (fast and efficient)
 - `gemini-1.0-pro` - Gemini 1.0 Pro (stable)
@@ -179,7 +179,7 @@ llm_service = create_llm_service(
 # Option 2: Gemini
 llm_service = create_llm_service(
     provider="gemini",
-    model_name="gemini-2.0-flash-exp",
+    model_name="gemini-2.5-flash-lite",
     api_key="your-api-key",
     tool_executor=executor,
     temperature=0.7
@@ -271,7 +271,7 @@ pip install langchain-google-genai
 - Consider larger models (7B+) for better quality if you have resources
 
 ### Gemini
-- Use `gemini-2.0-flash-exp` for fastest responses
+- Use `gemini-2.5-flash-lite` for fastest responses
 - Use `gemini-1.5-pro` for highest quality
 - Adjust temperature (0.0-1.0) for creativity vs consistency
 - Enable caching for repeated queries (reduces costs)
