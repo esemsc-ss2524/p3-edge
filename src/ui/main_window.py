@@ -24,10 +24,10 @@ from PyQt6.QtWidgets import (
 from src.database.db_manager import DatabaseManager
 from src.services import InventoryService
 from src.services.forecast_service import ForecastService
+from src.ui.p3_dashboard import P3Dashboard
 from src.ui.inventory_page import InventoryPage
 from src.ui.forecast_page import ForecastPage
 from src.ui.smart_fridge_page import SmartFridgePage
-from src.ui.chat_page import ChatPage
 from src.ui.cart_page import CartPage
 from src.utils import get_logger
 
@@ -126,14 +126,13 @@ class MainWindow(QMainWindow):
         self.nav_buttons = {}
 
         nav_items = [
-            ("Dashboard", self.show_dashboard),
-            ("Inventory", self.show_inventory),
-            ("Forecasts", self.show_forecasts),
-            ("AI Chat", self.show_chat),
-            ("Shopping Cart", self.show_shopping_cart),
-            ("Order History", self.show_order_history),
-            ("Smart Fridge", self.show_smart_fridge),
-            ("Settings", self.show_settings),
+            ("🤖 P3 Home", self.show_dashboard),
+            ("📦 Inventory", self.show_inventory),
+            ("📊 Forecasts", self.show_forecasts),
+            ("🛒 Shopping Cart", self.show_shopping_cart),
+            ("📜 Orders", self.show_order_history),
+            ("🌡️ Smart Fridge", self.show_smart_fridge),
+            ("⚙️ Settings", self.show_settings),
         ]
 
         for label, callback in nav_items:
@@ -159,10 +158,9 @@ class MainWindow(QMainWindow):
 
         # Create pages
         self.pages = {
-            "dashboard": self._create_dashboard_page(),
+            "dashboard": P3Dashboard(self.db_manager, tool_executor=self.tool_executor) if self.db_manager else self._create_placeholder_page("Dashboard"),
             "inventory": InventoryPage(self.inventory_service) if self.inventory_service else self._create_placeholder_page("Inventory Management"),
             "forecasts": ForecastPage(self.forecast_service) if self.forecast_service else self._create_placeholder_page("Forecast View"),
-            "chat": ChatPage(tool_executor=self.tool_executor),
             "shopping_cart": CartPage(self.db_manager, cart_service=self.cart_service) if self.db_manager else self._create_placeholder_page("Shopping Cart"),
             "order_history": self._create_placeholder_page("Order History"),
             "smart_fridge": SmartFridgePage(self.db_manager) if self.db_manager else self._create_placeholder_page("Smart Refrigerator"),
