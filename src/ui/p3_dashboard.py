@@ -73,7 +73,7 @@ class ModernChatMessage(QFrame):
 
     def _setup_ui(self):
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(20, 5, 20, 5) # Side margins for the whole row
+        layout.setContentsMargins(10, 5, 10, 5)
 
         # The Bubble
         message_label = QLabel(self.text)
@@ -81,39 +81,84 @@ class ModernChatMessage(QFrame):
         message_label.setTextInteractionFlags(
             Qt.TextInteractionFlag.TextSelectableByMouse
         )
-        
+
         # Font settings
-        font = QFont("Segoe UI", 11)  # Modern clean font
+        font = QFont("Segoe UI", 11)
         message_label.setFont(font)
 
         if self.is_user:
             layout.addStretch()
-            # User: Blue bubble, white text, sharp bottom-right corner
+            # User: Blue bubble, white text
             message_label.setStyleSheet("""
                 QLabel {
-                    background-color: #007AFF;
-                    color: white;
-                    padding: 12px 18px;
-                    border-radius: 18px;
+                    background-color: #1280C5;
+                    color: #FFFEFF;
+                    padding: 12px 16px;
+                    border-radius: 16px;
                     border-bottom-right-radius: 4px;
                     min-height: 20px;
                 }
             """)
             layout.addWidget(message_label)
         else:
-            # P3: Light gray bubble, dark text, sharp bottom-left corner
+            # P3: Light bubble, dark text
             message_label.setStyleSheet("""
                 QLabel {
-                    background-color: #E9E9EB;
-                    color: #000000;
-                    padding: 12px 18px;
-                    border-radius: 18px;
+                    background-color: #F3FBFB;
+                    color: #3D4145;
+                    padding: 12px 16px;
+                    border-radius: 16px;
                     border-bottom-left-radius: 4px;
                     min-height: 20px;
+                    border: 1px solid #1280C5;
                 }
             """)
             layout.addWidget(message_label)
             layout.addStretch()
+
+
+class AutonomousLogEntry(QFrame):
+    """A log entry for autonomous activity."""
+
+    def __init__(self, text: str, activity_type: str = "info", parent=None):
+        super().__init__(parent)
+        self.text = text
+        self.activity_type = activity_type
+        self._setup_ui()
+
+    def _setup_ui(self):
+        self.setFrameShape(QFrame.Shape.NoFrame)
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 5, 0, 5)
+
+        # Icon based on type
+        icon_map = {
+            "info": "ℹ️",
+            "action": "⚡",
+            "success": "✓",
+            "error": "⚠️",
+            "cycle": "🔄"
+        }
+        icon_label = QLabel(icon_map.get(self.activity_type, "•"))
+        icon_label.setStyleSheet("font-size: 14px; color: #1280C5;")
+        icon_label.setFixedWidth(20)
+
+        # Message
+        message_label = QLabel(self.text)
+        message_label.setWordWrap(True)
+        message_label.setStyleSheet("""
+            QLabel {
+                background-color: rgba(18, 128, 197, 0.08);
+                color: #3D4145;
+                padding: 10px 14px;
+                border-radius: 8px;
+                border-left: 3px solid #1280C5;
+                font-size: 11px;
+            }
+        """)
+
+        layout.addWidget(icon_label)
+        layout.addWidget(message_label, stretch=1)
 
 
 class StatPill(QFrame):
@@ -235,135 +280,338 @@ class P3Dashboard(QWidget):
         self.stats_timer.start(30000) 
 
     def _setup_ui(self):
-        """Set up the modern 2-pane UI with specific ratios."""
-        self.setStyleSheet("background-color: #F5F7FA;")
-        
-        main_layout = QHBoxLayout(self)
+        """Set up the futuristic two-column UI."""
+        # Color palette
+        self.COLOR_WHITE = "#FFFEFF"
+        self.COLOR_BLUE = "#1280C5"
+        self.COLOR_DARK = "#3D4145"
+        self.COLOR_LIGHT_BLUE = "#F3FBFB"
+
+        self.setStyleSheet(f"background-color: {self.COLOR_LIGHT_BLUE};")
+
+        main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
 
         # ==========================================================
-        # LEFT PANEL: The Character (P3) - 50% Width
+        # TOP: P3 Character Header (full width, small)
         # ==========================================================
-        left_panel = QFrame()
-        left_panel.setStyleSheet("background-color: #FFFFFF; border-right: 1px solid #E5E5E5;")
-        left_layout = QVBoxLayout(left_panel)
-        left_layout.setContentsMargins(20, 40, 20, 40)
-        
-        # 1. Status Indicator
-        status_container = QHBoxLayout()
-        self.status_dot = QLabel("●")
-        self.status_dot.setStyleSheet("color: #27ae60; font-size: 12px;")
-        status_text = QLabel("SYSTEM ONLINE")
-        status_text.setStyleSheet("color: #95a5a6; font-size: 10px; font-weight: bold; letter-spacing: 1px;")
-        status_container.addWidget(self.status_dot)
-        status_container.addWidget(status_text)
-        status_container.addStretch()
-        left_layout.addLayout(status_container)
+        header = QFrame()
+        header.setStyleSheet(f"""
+            QFrame {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 {self.COLOR_BLUE}, stop:1 #0a5a8a);
+                border: none;
+            }}
+        """)
+        header.setFixedHeight(120)
+        header_layout = QHBoxLayout(header)
+        header_layout.setContentsMargins(30, 15, 30, 15)
 
-        # 2. Character Stage
+        # P3 Character (small, centered)
         self.character_label = QLabel()
         self.character_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.character_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.character_label.setFixedSize(80, 80)
         self.character_label.setCursor(Qt.CursorShape.PointingHandCursor)
         self.character_label.mousePressEvent = lambda event: self._on_character_clicked()
-        left_layout.addWidget(self.character_label, stretch=10)
 
-        # 3. HUD Stats
+        # Status and HUD
+        info_layout = QVBoxLayout()
+
+        # Status
+        status_layout = QHBoxLayout()
+        self.status_dot = QLabel("●")
+        self.status_dot.setStyleSheet(f"color: #2ecc71; font-size: 10px;")
+        status_text = QLabel("P3 ONLINE")
+        status_text.setStyleSheet(f"color: {self.COLOR_WHITE}; font-size: 11px; font-weight: 600; letter-spacing: 2px;")
+        status_layout.addWidget(self.status_dot)
+        status_layout.addWidget(status_text)
+        status_layout.addStretch()
+        info_layout.addLayout(status_layout)
+
+        # HUD Stats + Budget
         stats_layout = QHBoxLayout()
-        stats_layout.setSpacing(15)
+        stats_layout.setSpacing(10)
         stats_config = [
-            ("inventory", "📦", "Items", "#3498db"),
+            ("inventory", "📦", "Items", self.COLOR_WHITE),
             ("low_stock", "⚠️", "Low", "#e74c3c"),
-            ("pending", "🛒", "Cart", "#f39c12")
+            ("cart", "🛒", "Cart", "#f39c12")
         ]
-        stats_layout.addStretch()
         for key, icon, label, color in stats_config:
             pill = StatPill(icon, label, "-", color)
+            pill.setStyleSheet(f"""
+                QFrame {{
+                    background-color: rgba(255, 255, 255, 0.15);
+                    border: 1px solid rgba(255, 255, 255, 0.3);
+                    border-radius: 15px;
+                }}
+            """)
             self.stat_widgets[key] = pill
             stats_layout.addWidget(pill)
+
+        # Budget Display
+        budget_container = QFrame()
+        budget_container.setStyleSheet(f"""
+            QFrame {{
+                background-color: rgba(255, 255, 255, 0.15);
+                border: 1px solid rgba(255, 255, 255, 0.3);
+                border-radius: 15px;
+                padding: 5px 12px;
+            }}
+        """)
+        budget_layout = QHBoxLayout(budget_container)
+        budget_layout.setContentsMargins(8, 5, 8, 5)
+        budget_layout.setSpacing(8)
+
+        budget_icon = QLabel("💰")
+        self.budget_label = QLabel("Budget: $-")
+        self.budget_label.setStyleSheet(f"color: {self.COLOR_WHITE}; font-weight: 600; font-size: 12px; border: none;")
+
+        self.budget_edit_btn = QPushButton("✎")
+        self.budget_edit_btn.setFixedSize(24, 24)
+        self.budget_edit_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.budget_edit_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: rgba(255, 255, 255, 0.2);
+                color: {self.COLOR_WHITE};
+                border: none;
+                border-radius: 12px;
+                font-size: 12px;
+            }}
+            QPushButton:hover {{ background-color: rgba(255, 255, 255, 0.3); }}
+        """)
+        self.budget_edit_btn.clicked.connect(self._edit_budget)
+
+        budget_layout.addWidget(budget_icon)
+        budget_layout.addWidget(self.budget_label)
+        budget_layout.addWidget(self.budget_edit_btn)
+
+        stats_layout.addWidget(budget_container)
         stats_layout.addStretch()
-        left_layout.addLayout(stats_layout)
-        
-        # Add Left Panel with Stretch 1 (50% relative to total 2)
-        main_layout.addWidget(left_panel, stretch=1) 
+        info_layout.addLayout(stats_layout)
+
+        header_layout.addWidget(self.character_label)
+        header_layout.addLayout(info_layout, stretch=1)
+
+        main_layout.addWidget(header)
 
         # ==========================================================
-        # RIGHT PANEL: The Chat - 50% Width
+        # MIDDLE: Two Column Layout
         # ==========================================================
-        right_panel = QWidget()
-        right_panel.setStyleSheet("background-color: #F5F7FA;")
-        
-        # We use a VBox to split History (90%) and Input (10%)
-        right_layout = QVBoxLayout(right_panel)
-        right_layout.setContentsMargins(0, 0, 0, 0)
-        right_layout.setSpacing(0)
-        
-        # --- 1. Chat History Section (approx 90%) ---
+        columns_layout = QHBoxLayout()
+        columns_layout.setContentsMargins(0, 0, 0, 0)
+        columns_layout.setSpacing(0)
+
+        # LEFT COLUMN: User Chat with P3
+        left_column = self._create_chat_column(
+            title="Chat with P3",
+            is_user_chat=True
+        )
+
+        # RIGHT COLUMN: P3 Autonomous Log
+        right_column = self._create_autonomous_log_column(
+            title="P3 Activity Log"
+        )
+
+        columns_layout.addWidget(left_column, stretch=1)
+        columns_layout.addWidget(right_column, stretch=1)
+
+        main_layout.addLayout(columns_layout, stretch=1)
+
+        # Initialize Default Animation
+        self._play_idle_animation()
+        self._load_budget()
+
+    def _create_chat_column(self, title: str, is_user_chat: bool):
+        """Create the user chat column."""
+        column = QFrame()
+        column.setStyleSheet(f"""
+            QFrame {{
+                background-color: {self.COLOR_WHITE};
+                border-right: 2px solid {self.COLOR_BLUE};
+            }}
+        """)
+
+        layout = QVBoxLayout(column)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        # Title bar
+        title_bar = QFrame()
+        title_bar.setStyleSheet(f"""
+            QFrame {{
+                background-color: {self.COLOR_DARK};
+                border: none;
+            }}
+        """)
+        title_bar.setFixedHeight(40)
+        title_layout = QHBoxLayout(title_bar)
+        title_layout.setContentsMargins(20, 0, 20, 0)
+
+        title_label = QLabel(title)
+        title_label.setStyleSheet(f"""
+            color: {self.COLOR_WHITE};
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 1px;
+        """)
+        title_layout.addWidget(title_label)
+        title_layout.addStretch()
+
+        layout.addWidget(title_bar)
+
+        # Chat area
         self.chat_scroll = QScrollArea()
         self.chat_scroll.setWidgetResizable(True)
         self.chat_scroll.setFrameShape(QFrame.Shape.NoFrame)
-        self.chat_scroll.setStyleSheet("""
-            QScrollArea { background: transparent; }
-            QScrollBar:vertical { width: 8px; background: transparent; }
-            QScrollBar::handle:vertical { background: #cbd5e0; border-radius: 4px; }
+        self.chat_scroll.setStyleSheet(f"""
+            QScrollArea {{ background: {self.COLOR_WHITE}; border: none; }}
+            QScrollBar:vertical {{
+                width: 8px;
+                background: {self.COLOR_LIGHT_BLUE};
+                border-radius: 4px;
+            }}
+            QScrollBar::handle:vertical {{
+                background: {self.COLOR_BLUE};
+                border-radius: 4px;
+            }}
         """)
-        
+
         self.chat_container = QWidget()
-        self.chat_container.setStyleSheet("background: transparent;")
+        self.chat_container.setStyleSheet(f"background: {self.COLOR_WHITE};")
         self.chat_layout = QVBoxLayout(self.chat_container)
         self.chat_layout.setContentsMargins(20, 20, 20, 20)
         self.chat_layout.setSpacing(15)
         self.chat_layout.addStretch()
-        
+
         self.chat_scroll.setWidget(self.chat_container)
-        
-        # Add scroll area with high stretch factor (e.g., 9 or 90)
-        right_layout.addWidget(self.chat_scroll, stretch=90)
+        layout.addWidget(self.chat_scroll, stretch=1)
 
-        # --- 2. Input Section (approx 10% - or minimal required space) ---
+        # Input area
         input_container = QWidget()
-        input_container.setStyleSheet("background-color: #F5F7FA;") # Match background
+        input_container.setStyleSheet(f"background-color: {self.COLOR_LIGHT_BLUE}; border: none;")
         input_layout = QHBoxLayout(input_container)
-        input_layout.setContentsMargins(20, 10, 20, 20)
-        input_layout.setAlignment(Qt.AlignmentFlag.AlignBottom) # Anchor to bottom
+        input_layout.setContentsMargins(20, 15, 20, 15)
 
-        # Use our new AutoResizingTextEdit
         self.input_field = AutoResizingTextEdit()
-        self.input_field.setPlaceholderText("Ask P3 about groceries, recipes...")
+        self.input_field.setPlaceholderText("Ask P3 anything...")
+        self.input_field.setStyleSheet(f"""
+            QTextEdit {{
+                background-color: {self.COLOR_WHITE};
+                border: 2px solid {self.COLOR_BLUE};
+                border-radius: 20px;
+                padding: 12px 18px;
+                font-size: 13px;
+                color: {self.COLOR_DARK};
+            }}
+            QTextEdit:focus {{
+                border: 2px solid {self.COLOR_BLUE};
+            }}
+        """)
 
-        # Send Button
         self.send_btn = QPushButton("➤")
-        self.send_btn.setFixedSize(45, 45) # Slightly smaller to match default input height
+        self.send_btn.setFixedSize(50, 50)
         self.send_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.send_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #3498db;
-                color: white;
-                border-radius: 22px;
-                font-size: 18px;
+        self.send_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {self.COLOR_BLUE};
+                color: {self.COLOR_WHITE};
+                border-radius: 25px;
+                font-size: 20px;
                 font-weight: bold;
-                padding-bottom: 3px; 
-            }
-            QPushButton:hover { background-color: #2980b9; }
-            QPushButton:pressed { background-color: #21618c; transform: scale(0.95); }
+                border: none;
+            }}
+            QPushButton:hover {{
+                background-color: #0d6ba3;
+            }}
+            QPushButton:pressed {{
+                background-color: #0a5a8a;
+            }}
         """)
         self.send_btn.clicked.connect(self._send_message)
 
         input_layout.addWidget(self.input_field)
         input_layout.addWidget(self.send_btn)
-        
-        # Add input container with lower stretch factor (e.g., 10)
-        # However, for input fields, it's often better to use stretch=0 
-        # so it only takes what it needs, and the chat history takes "the rest".
-        # But to strictly follow your request of "10% input section":
-        right_layout.addWidget(input_container, stretch=10)
-        
-        # Add Right Panel with Stretch 1 (50% relative to total 2)
-        main_layout.addWidget(right_panel, stretch=1)
 
-        # Initialize Default Animation
-        self._play_idle_animation()
+        layout.addWidget(input_container)
+
+        return column
+
+    def _create_autonomous_log_column(self, title: str):
+        """Create the autonomous activity log column."""
+        column = QFrame()
+        column.setStyleSheet(f"""
+            QFrame {{
+                background-color: {self.COLOR_LIGHT_BLUE};
+                border: none;
+            }}
+        """)
+
+        layout = QVBoxLayout(column)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        # Title bar
+        title_bar = QFrame()
+        title_bar.setStyleSheet(f"""
+            QFrame {{
+                background-color: {self.COLOR_DARK};
+                border: none;
+            }}
+        """)
+        title_bar.setFixedHeight(40)
+        title_layout = QHBoxLayout(title_bar)
+        title_layout.setContentsMargins(20, 0, 20, 0)
+
+        title_label = QLabel(title)
+        title_label.setStyleSheet(f"""
+            color: {self.COLOR_WHITE};
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 1px;
+        """)
+
+        self.autonomous_status = QLabel("● Monitoring")
+        self.autonomous_status.setStyleSheet(f"""
+            color: #2ecc71;
+            font-size: 11px;
+            font-weight: 500;
+        """)
+
+        title_layout.addWidget(title_label)
+        title_layout.addStretch()
+        title_layout.addWidget(self.autonomous_status)
+
+        layout.addWidget(title_bar)
+
+        # Activity log area
+        self.autonomous_scroll = QScrollArea()
+        self.autonomous_scroll.setWidgetResizable(True)
+        self.autonomous_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        self.autonomous_scroll.setStyleSheet(f"""
+            QScrollArea {{ background: {self.COLOR_LIGHT_BLUE}; border: none; }}
+            QScrollBar:vertical {{
+                width: 8px;
+                background: {self.COLOR_WHITE};
+                border-radius: 4px;
+            }}
+            QScrollBar::handle:vertical {{
+                background: {self.COLOR_BLUE};
+                border-radius: 4px;
+            }}
+        """)
+
+        self.autonomous_container = QWidget()
+        self.autonomous_container.setStyleSheet(f"background: {self.COLOR_LIGHT_BLUE};")
+        self.autonomous_layout = QVBoxLayout(self.autonomous_container)
+        self.autonomous_layout.setContentsMargins(20, 20, 20, 20)
+        self.autonomous_layout.setSpacing(12)
+        self.autonomous_layout.addStretch()
+
+        self.autonomous_scroll.setWidget(self.autonomous_container)
+        layout.addWidget(self.autonomous_scroll, stretch=1)
+
+        return column
 
     # --- Animation Handling ---
     
@@ -468,6 +716,7 @@ class P3Dashboard(QWidget):
         self._play_idle_animation()
 
     def _add_message(self, text: str, is_user: bool):
+        """Add message to user chat column."""
         # Remove spacer
         if self.chat_layout.count() > 0:
             item = self.chat_layout.itemAt(self.chat_layout.count() - 1)
@@ -476,14 +725,151 @@ class P3Dashboard(QWidget):
 
         msg_widget = ModernChatMessage(text, is_user)
         self.chat_layout.addWidget(msg_widget)
-        
+
         # Add spacer back
         self.chat_layout.addStretch()
-        
+
         # Scroll to bottom
         QTimer.singleShot(50, lambda: self.chat_scroll.verticalScrollBar().setValue(
             self.chat_scroll.verticalScrollBar().maximum()
         ))
+
+    def _add_autonomous_log(self, text: str, activity_type: str = "info"):
+        """Add entry to autonomous activity log column."""
+        # Remove spacer
+        if self.autonomous_layout.count() > 0:
+            item = self.autonomous_layout.itemAt(self.autonomous_layout.count() - 1)
+            if item.spacerItem():
+                self.autonomous_layout.removeItem(item)
+
+        log_entry = AutonomousLogEntry(text, activity_type)
+        self.autonomous_layout.addWidget(log_entry)
+
+        # Add spacer back
+        self.autonomous_layout.addStretch()
+
+        # Scroll to bottom
+        QTimer.singleShot(50, lambda: self.autonomous_scroll.verticalScrollBar().setValue(
+            self.autonomous_scroll.verticalScrollBar().maximum()
+        ))
+
+    def _load_budget(self):
+        """Load and display budget from preferences."""
+        try:
+            prefs = self.db_manager.get_preferences()
+            weekly_cap = prefs.get("spend_cap_weekly", 0)
+            monthly_cap = prefs.get("spend_cap_monthly", 0)
+
+            if monthly_cap:
+                self.budget_label.setText(f"Budget: ${monthly_cap}/mo")
+            elif weekly_cap:
+                self.budget_label.setText(f"Budget: ${weekly_cap}/wk")
+            else:
+                self.budget_label.setText("Budget: Not Set")
+        except Exception as e:
+            self.logger.error(f"Error loading budget: {e}")
+            self.budget_label.setText("Budget: Error")
+
+    def _edit_budget(self):
+        """Open dialog to edit budget."""
+        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLineEdit, QComboBox
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Set Budget")
+        dialog.setStyleSheet(f"""
+            QDialog {{
+                background-color: {self.COLOR_WHITE};
+            }}
+            QLabel {{
+                color: {self.COLOR_DARK};
+                font-size: 13px;
+            }}
+            QLineEdit {{
+                border: 2px solid {self.COLOR_BLUE};
+                border-radius: 8px;
+                padding: 8px;
+                font-size: 13px;
+                color: {self.COLOR_DARK};
+            }}
+            QComboBox {{
+                border: 2px solid {self.COLOR_BLUE};
+                border-radius: 8px;
+                padding: 8px;
+                font-size: 13px;
+            }}
+            QPushButton {{
+                background-color: {self.COLOR_BLUE};
+                color: {self.COLOR_WHITE};
+                border: none;
+                border-radius: 8px;
+                padding: 10px 20px;
+                font-size: 13px;
+                font-weight: 600;
+            }}
+            QPushButton:hover {{
+                background-color: #0d6ba3;
+            }}
+        """)
+
+        layout = QVBoxLayout(dialog)
+
+        # Amount input
+        amount_layout = QHBoxLayout()
+        amount_layout.addWidget(QLabel("Amount: $"))
+        amount_input = QLineEdit()
+        amount_input.setPlaceholderText("100")
+        amount_layout.addWidget(amount_input)
+        layout.addLayout(amount_layout)
+
+        # Period selection
+        period_layout = QHBoxLayout()
+        period_layout.addWidget(QLabel("Period:"))
+        period_combo = QComboBox()
+        period_combo.addItems(["Weekly", "Monthly"])
+        period_layout.addWidget(period_combo)
+        layout.addLayout(period_layout)
+
+        # Buttons
+        button_layout = QHBoxLayout()
+        save_btn = QPushButton("Save")
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {self.COLOR_DARK};
+                color: {self.COLOR_WHITE};
+            }}
+        """)
+
+        def save_budget():
+            try:
+                amount = float(amount_input.text())
+                period = period_combo.currentText().lower()
+
+                prefs = self.db_manager.get_preferences()
+                if period == "weekly":
+                    prefs["spend_cap_weekly"] = amount
+                    prefs["spend_cap_monthly"] = None
+                else:
+                    prefs["spend_cap_monthly"] = amount
+                    prefs["spend_cap_weekly"] = None
+
+                # Save preferences
+                for key, value in prefs.items():
+                    self.db_manager.set_preference(key, value)
+
+                self._load_budget()
+                dialog.accept()
+            except ValueError:
+                amount_input.setPlaceholderText("Invalid amount")
+
+        save_btn.clicked.connect(save_budget)
+        cancel_btn.clicked.connect(dialog.reject)
+
+        button_layout.addWidget(save_btn)
+        button_layout.addWidget(cancel_btn)
+        layout.addLayout(button_layout)
+
+        dialog.exec()
 
     # --- Backend & Initialization ---
 
@@ -509,25 +895,40 @@ class P3Dashboard(QWidget):
             self._add_message(f"System Initialization Failed: {e}", is_user=False)
 
     def _update_stats(self):
+        """Update HUD stats with correct values."""
         if not self.db_manager:
             return
-        
-        # Use a background thread for DB calls in production to prevent UI freeze
+
         try:
             # 1. Inventory
             res = self.db_manager.execute_query("SELECT COUNT(*) FROM inventory")
             val = res[0][0] if res else 0
             self.stat_widgets["inventory"].update_value(str(val))
 
-            # 2. Low Stock
+            # 2. Low Stock (quantity <= min)
             res = self.db_manager.execute_query("SELECT COUNT(*) FROM inventory WHERE quantity_current <= quantity_min")
             val = res[0][0] if res else 0
             self.stat_widgets["low_stock"].update_value(str(val))
 
-            # 3. Pending
-            res = self.db_manager.execute_query("SELECT COUNT(*) FROM orders WHERE status = 'PENDING'")
-            val = res[0][0] if res else 0
-            self.stat_widgets["pending"].update_value(str(val))
+            # 3. Cart (count items in pending orders)
+            res = self.db_manager.execute_query("""
+                SELECT SUM(json_array_length(items))
+                FROM orders
+                WHERE status = 'PENDING'
+            """)
+            # json_array_length may not be available, so let's count differently
+            # Get all PENDING orders and parse their items JSON
+            orders_res = self.db_manager.execute_query("SELECT items FROM orders WHERE status = 'PENDING'")
+            total_items = 0
+            if orders_res:
+                import json
+                for row in orders_res:
+                    try:
+                        items = json.loads(row[0]) if row[0] else []
+                        total_items += len(items)
+                    except:
+                        pass
+            self.stat_widgets["cart"].update_value(str(total_items))
 
         except Exception as e:
             self.logger.error(f"Stats update error: {e}")
@@ -536,31 +937,36 @@ class P3Dashboard(QWidget):
 
     def _on_agent_cycle_started(self, cycle_id: str):
         """Called when autonomous agent starts a new cycle."""
-        self.logger.info(f"Agent cycle started: {cycle_id}")
-        self._add_message(f"[Agent] Starting autonomous maintenance cycle...", is_user=False)
-        self.status_dot.setStyleSheet("color: #f39c12;")  # Orange for active
+        self.logger.info(f"P3 cycle started: {cycle_id}")
+        self._add_autonomous_log("Starting maintenance cycle...", "cycle")
+        self.autonomous_status.setText("● Working")
+        self.autonomous_status.setStyleSheet("color: #f39c12; font-size: 11px; font-weight: 500;")
 
     def _on_agent_cycle_completed(self, cycle_id: str, summary: dict):
         """Called when autonomous agent completes a cycle."""
         status = summary.get('status', 'unknown')
-        self.logger.info(f"Agent cycle completed: {cycle_id} - Status: {status}")
+        self.logger.info(f"P3 cycle completed: {cycle_id} - Status: {status}")
 
         if status == 'completed':
             tool_calls = summary.get('tool_calls', 0)
             response = summary.get('response', 'No actions taken')
-            self._add_message(f"[Agent] Cycle complete. {tool_calls} action(s) taken. {response}", is_user=False)
+            self._add_autonomous_log(
+                f"Cycle complete: {tool_calls} action(s) taken. {response}",
+                "success"
+            )
         elif status == 'skipped':
             reason = summary.get('reason', 'No action needed')
-            self.logger.debug(f"Agent cycle skipped: {reason}")
-            # Don't show skipped cycles in chat to reduce clutter
+            self.logger.debug(f"P3 cycle skipped: {reason}")
+            self._add_autonomous_log(f"System check: {reason}", "info")
         elif status == 'error':
             error = summary.get('error', 'Unknown error')
-            self._add_message(f"[Agent] Cycle failed: {error}", is_user=False)
+            self._add_autonomous_log(f"Cycle failed: {error}", "error")
 
-        self.status_dot.setStyleSheet("color: #27ae60;")  # Green for ready
-        self._update_stats()  # Refresh stats after agent actions
+        self.autonomous_status.setText("● Monitoring")
+        self.autonomous_status.setStyleSheet("color: #2ecc71; font-size: 11px; font-weight: 500;")
+        self._update_stats()  # Refresh stats after actions
 
     def _on_agent_action(self, action_type: str, description: str):
         """Called when autonomous agent takes an action."""
-        self.logger.info(f"Agent action: {action_type} - {description}")
-        self._add_message(f"[Agent] {description}", is_user=False)
+        self.logger.info(f"P3 action: {action_type} - {description}")
+        self._add_autonomous_log(description, "action")
