@@ -8,7 +8,8 @@ supporting function calling and multimodal inputs.
 import json
 import time
 import uuid
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Callable, TypeVar
+from functools import wraps
 
 try:
     from langchain_google_genai import ChatGoogleGenerativeAI
@@ -28,6 +29,8 @@ from ..models.tool_models import (
 )
 from ..tools.executor import ToolExecutor
 from .base_llm_service import BaseLLMService
+
+T = TypeVar('T')
 
 
 class GeminiLLMService(BaseLLMService):
@@ -92,6 +95,68 @@ class GeminiLLMService(BaseLLMService):
             self.logger.error(f"Failed to initialize Gemini model: {e}")
             raise
 
+    def _retry_with_exponential_backoff(
+        self,
+        func: Callable[[], T],
+        max_retries: int = 10,
+        base_delay: float = 1.0,
+        max_delay: float = 60.0,
+    ) -> T:
+        """
+        Retry a function with exponential backoff.
+
+        Args:
+            func: Function to retry
+            max_retries: Maximum number of retry attempts (default: 10)
+            base_delay: Base delay in seconds (default: 1.0)
+            max_delay: Maximum delay between retries in seconds (default: 60.0)
+
+        Returns:
+            Result of the function call
+
+        Raises:
+            Exception: If all retries are exhausted
+        """
+        last_exception = None
+
+        for attempt in range(max_retries + 1):
+            try:
+                return func()
+
+            except Exception as e:
+                last_exception = e
+                error_str = str(e).lower()
+
+                # Check if this is a retryable error
+                is_timeout = "timeout" in error_str or "timed out" in error_str
+                is_rate_limit = "rate limit" in error_str or "quota" in error_str or "429" in error_str
+                is_server_error = "500" in error_str or "502" in error_str or "503" in error_str or "504" in error_str
+                is_connection_error = "connection" in error_str or "network" in error_str
+
+                is_retryable = is_timeout or is_rate_limit or is_server_error or is_connection_error
+
+                if not is_retryable or attempt >= max_retries:
+                    # Non-retryable error or max retries reached
+                    if attempt >= max_retries:
+                        self.logger.error(
+                            f"Max retries ({max_retries}) exceeded for Gemini API call. "
+                            f"Last error: {e}"
+                        )
+                    raise
+
+                # Calculate exponential backoff delay
+                delay = min(base_delay * (2 ** attempt), max_delay)
+
+                self.logger.warning(
+                    f"Gemini API error (attempt {attempt + 1}/{max_retries + 1}): {e}. "
+                    f"Retrying in {delay:.1f}s..."
+                )
+
+                time.sleep(delay)
+
+        # Should never reach here, but just in case
+        raise last_exception
+
     def chat(
         self,
         message: str,
@@ -131,9 +196,11 @@ class GeminiLLMService(BaseLLMService):
             # Add current message
             messages.append(HumanMessage(content=message))
 
-            # Call Gemini
+            # Call Gemini with retry logic
             self.logger.debug(f"Sending message to {self._model_name}")
-            response = self.llm.invoke(messages)
+            response = self._retry_with_exponential_backoff(
+                lambda: self.llm.invoke(messages)
+            )
 
             response_text = response.content
 
@@ -225,8 +292,10 @@ class GeminiLLMService(BaseLLMService):
             self.logger.info(f"Agent iteration {iteration + 1}/{max_iterations}")
 
             try:
-                # Call Gemini with tools
-                response = llm_with_tools.invoke(messages)
+                # Call Gemini with tools (with retry logic)
+                response = self._retry_with_exponential_backoff(
+                    lambda: llm_with_tools.invoke(messages)
+                )
 
                 # Check if there are tool calls
                 tool_calls = getattr(response, "tool_calls", [])
