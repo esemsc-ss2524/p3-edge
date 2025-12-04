@@ -11,7 +11,7 @@ Transforms the passive ProactiveAssistant into an autonomous agent that:
 import uuid
 from datetime import datetime
 from typing import Optional, Dict, Any
-from PyQt6.QtCore import QTimer, QObject, pyqtSignal
+from PyQt6.QtCore import QTimer, QObject, pyqtSignal, QThread
 
 from ..database.db_manager import DatabaseManager
 from ..services.llm_factory import create_llm_service
@@ -20,6 +20,124 @@ from ..services.memory_service import MemoryService
 from ..tools.executor import ToolExecutor
 from ..utils import get_logger, get_audit_logger
 from ..models import ActionType, Actor
+
+
+class AgentCycleWorker(QThread):
+    """
+    Worker thread for running autonomous agent cycles.
+
+    This prevents UI freezing during long-running LLM operations.
+    """
+    cycle_completed = pyqtSignal(str, dict)  # cycle_id, summary
+    action_taken = pyqtSignal(str, str)  # action_type, description
+    error_occurred = pyqtSignal(str, str)  # error_message, cycle_id
+
+    def __init__(
+        self,
+        cycle_id: str,
+        llm_service: LLMService,
+        memory: MemoryService,
+        db_manager: DatabaseManager,
+        audit_logger,
+        system_prompt: str,
+        trigger_reason: str
+    ):
+        super().__init__()
+        self.cycle_id = cycle_id
+        self.llm_service = llm_service
+        self.memory = memory
+        self.db_manager = db_manager
+        self.audit_logger = audit_logger
+        self.system_prompt = system_prompt
+        self.trigger_reason = trigger_reason
+        self.logger = get_logger("agent_worker")
+
+    def run(self):
+        """Execute the autonomous cycle in background thread."""
+        try:
+            self.logger.info(f"Worker thread started for cycle {self.cycle_id}")
+
+            # Add initial memory
+            self.memory.add_memory(
+                content=f"Starting decision cycle. Reason: {self.trigger_reason}",
+                memory_type="observation",
+                importance=5,
+                cycle_id=self.cycle_id,
+                outcome="pending"
+            )
+
+            # Execute LLM with tools (this is the blocking operation)
+            response = self.llm_service.chat_with_tools(
+                message="Execute autonomous maintenance cycle based on current state.",
+                system_prompt=self.system_prompt,
+                max_iterations=5
+            )
+
+            # Process results
+            for tool_call in response.tool_calls:
+                tool_name = tool_call.tool_name
+                outcome = "success" if not tool_call.error else "failure"
+
+                # Create memory
+                context = {
+                    "tool_name": tool_name,
+                    "parameters": tool_call.parameters,
+                    "result": str(tool_call.result)[:200] if tool_call.result else None,
+                    "error": tool_call.error
+                }
+
+                content = f"Executed {tool_name}"
+                if tool_call.error:
+                    content += f" - Failed: {tool_call.error}"
+                else:
+                    content += f" - Success"
+
+                importance = 7 if tool_name in ["add_to_cart", "start_model_training"] else 5
+
+                self.memory.add_memory(
+                    content=content,
+                    memory_type="action",
+                    importance=importance,
+                    cycle_id=self.cycle_id,
+                    context=context,
+                    outcome=outcome
+                )
+
+                # Emit signal for UI update
+                self.action_taken.emit(tool_name, content)
+
+                # Audit log
+                self.audit_logger.log_action(
+                    action_type=f"autonomous_{tool_name}",
+                    actor=Actor.SYSTEM.value,
+                    details=context,
+                    outcome=outcome
+                )
+
+            # Log final response
+            self.memory.add_memory(
+                content=f"Cycle decision: {response.response}",
+                memory_type="reflection",
+                importance=6,
+                cycle_id=self.cycle_id,
+                context={"iterations": response.iterations},
+                outcome="success"
+            )
+
+            # Emit completion signal
+            summary = {
+                "status": "completed",
+                "tool_calls": len(response.tool_calls),
+                "iterations": response.iterations,
+                "response": response.response
+            }
+            self.cycle_completed.emit(self.cycle_id, summary)
+
+            self.logger.info(f"Worker thread completed for cycle {self.cycle_id}")
+
+        except Exception as e:
+            self.logger.error(f"Error in worker thread: {e}", exc_info=True)
+            self.error_occurred.emit(str(e), self.cycle_id)
 
 
 class AutonomousAgent(QObject):
@@ -69,6 +187,7 @@ class AutonomousAgent(QObject):
         self.current_cycle_id: Optional[str] = None
         self.is_running = False
         self.last_cycle_time: Optional[datetime] = None
+        self.worker: Optional[AgentCycleWorker] = None
 
         # QTimer for periodic execution
         self.timer = QTimer()
@@ -138,15 +257,14 @@ class AutonomousAgent(QObject):
 
     def run_cycle(self):
         """
-        Execute one autonomous cycle.
+        Execute one autonomous cycle using a background worker thread.
 
         This is the main autonomous loop:
         1. Check if should run (cooldown, already running)
-        2. Quick heuristic checks
-        3. Build context from memory
-        4. Let LLM reason about actions
-        5. Execute tools
-        6. Save memories
+        2. Quick heuristic checks (on main thread - fast)
+        3. Build context and system prompt (on main thread - fast)
+        4. Spawn worker thread for LLM reasoning (prevents UI freeze)
+        5. Worker executes tools and saves memories
         """
         if not self.enabled:
             return
@@ -169,7 +287,7 @@ class AutonomousAgent(QObject):
         self.cycle_started.emit(self.current_cycle_id)
 
         try:
-            # Step 1: Quick heuristic checks
+            # Step 1: Quick heuristic checks (fast - on main thread)
             should_act, reason = self._should_take_action()
 
             if not should_act:
@@ -184,58 +302,48 @@ class AutonomousAgent(QObject):
                 self._complete_cycle({"status": "skipped", "reason": reason})
                 return
 
-            # Step 2: Build context
+            # Step 2: Build context (fast - on main thread)
             memory_context = self.memory.get_working_context(recent_limit=10, important_limit=5)
 
-            # Step 3: Get current state
+            # Step 3: Get current state (fast - on main thread)
             state_summary = self._get_state_summary()
 
-            # Step 4: LLM reasoning
-            self.logger.info("Invoking LLM for autonomous decision making")
-
+            # Step 4: Build system prompt (fast - on main thread)
+            self.logger.info("Spawning worker thread for LLM reasoning")
             system_prompt = self._build_system_prompt(memory_context, state_summary, reason)
 
-            self.memory.add_memory(
-                content=f"Starting decision cycle. Reason: {reason}",
-                memory_type="observation",
-                importance=5,
+            # Step 5: Create and start worker thread (prevents UI freeze)
+            self.worker = AgentCycleWorker(
                 cycle_id=self.current_cycle_id,
-                outcome="pending"
-            )
-
-            # Execute LLM with tools
-            response = self.llm_service.chat_with_tools(
-                message="Execute autonomous maintenance cycle based on current state.",
+                llm_service=self.llm_service,
+                memory=self.memory,
+                db_manager=self.db_manager,
+                audit_logger=self.audit_logger,
                 system_prompt=system_prompt,
-                max_iterations=5  # Limit iterations
+                trigger_reason=reason
             )
 
-            # Step 5: Log results
-            self._process_cycle_results(response)
+            # Connect worker signals
+            self.worker.cycle_completed.connect(self._on_worker_completed)
+            self.worker.action_taken.connect(self._on_worker_action)
+            self.worker.error_occurred.connect(self._on_worker_error)
+            self.worker.finished.connect(self._on_worker_finished)
 
-            # Step 6: Complete cycle
-            summary = {
-                "status": "completed",
-                "tool_calls": len(response.tool_calls),
-                "iterations": response.iterations,
-                "response": response.response
-            }
-            self._complete_cycle(summary)
+            # Start worker thread
+            self.worker.start()
+            self.logger.info(f"Worker thread started for cycle {self.current_cycle_id}")
 
         except Exception as e:
-            self.logger.error(f"Error in autonomous cycle: {e}", exc_info=True)
+            self.logger.error(f"Error starting cycle: {e}", exc_info=True)
             self.memory.add_memory(
-                content=f"Cycle failed with error: {str(e)}",
+                content=f"Cycle failed to start: {str(e)}",
                 memory_type="observation",
                 importance=8,
                 cycle_id=self.current_cycle_id,
                 outcome="failure"
             )
             self._complete_cycle({"status": "error", "error": str(e)})
-
-        finally:
             self.is_running = False
-            self.last_cycle_time = datetime.now()
 
     def _should_take_action(self) -> tuple[bool, str]:
         """
@@ -389,62 +497,34 @@ Log your reasoning clearly.
 Stop when constraints are met or all critical issues addressed.
 """
 
-    def _process_cycle_results(self, response):
-        """Process and log the results of the autonomous cycle."""
-        try:
-            # Log tool calls
-            for tool_call in response.tool_calls:
-                tool_name = tool_call.tool_name
-                outcome = "success" if not tool_call.error else "failure"
+    def _on_worker_completed(self, cycle_id: str, summary: dict):
+        """Called when worker thread completes successfully."""
+        self.logger.info(f"Worker completed for cycle {cycle_id}")
+        self._complete_cycle(summary)
 
-                # Create memory
-                context = {
-                    "tool_name": tool_name,
-                    "parameters": tool_call.parameters,
-                    "result": str(tool_call.result)[:200] if tool_call.result else None,
-                    "error": tool_call.error
-                }
+    def _on_worker_action(self, action_type: str, description: str):
+        """Called when worker thread executes an action."""
+        # Forward signal to UI
+        self.action_taken.emit(action_type, description)
 
-                content = f"Executed {tool_name}"
-                if tool_call.error:
-                    content += f" - Failed: {tool_call.error}"
-                else:
-                    content += f" - Success"
+    def _on_worker_error(self, error_msg: str, cycle_id: str):
+        """Called when worker thread encounters an error."""
+        self.logger.error(f"Worker error for cycle {cycle_id}: {error_msg}")
+        self.memory.add_memory(
+            content=f"Cycle failed with error: {error_msg}",
+            memory_type="observation",
+            importance=8,
+            cycle_id=cycle_id,
+            outcome="failure"
+        )
+        self._complete_cycle({"status": "error", "error": error_msg})
 
-                importance = 7 if tool_name in ["add_to_cart", "start_model_training"] else 5
-
-                self.memory.add_memory(
-                    content=content,
-                    memory_type="action",
-                    importance=importance,
-                    cycle_id=self.current_cycle_id,
-                    context=context,
-                    outcome=outcome
-                )
-
-                # Emit signal
-                self.action_taken.emit(tool_name, content)
-
-                # Audit log
-                self.audit_logger.log_action(
-                    action_type=f"autonomous_{tool_name}",
-                    actor=Actor.SYSTEM.value,
-                    details=context,
-                    outcome=outcome
-                )
-
-            # Log final response
-            self.memory.add_memory(
-                content=f"Cycle decision: {response.response}",
-                memory_type="reflection",
-                importance=6,
-                cycle_id=self.current_cycle_id,
-                context={"iterations": response.iterations},
-                outcome="success"
-            )
-
-        except Exception as e:
-            self.logger.error(f"Error processing cycle results: {e}")
+    def _on_worker_finished(self):
+        """Called when worker thread finishes (regardless of success/error)."""
+        self.logger.info("Worker thread finished")
+        self.is_running = False
+        self.last_cycle_time = datetime.now()
+        self.worker = None
 
     def _complete_cycle(self, summary: Dict[str, Any]):
         """Complete the current cycle and emit summary."""
