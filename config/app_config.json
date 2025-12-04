@@ -41,13 +41,17 @@
   "llm": {
     "provider": "gemini",
     "ollama": {
-      "model": "gemma3n:e2b-it-q4_K_M",
+      "model": "orieg/gemma3-tools:4b",
       "base_url": "http://localhost:11434"
     },
     "gemini": {
-      "model": "gemini-2.5-flash-lite",
+      "model": "gemma-3n-e4b-it",
       "temperature": 0.3,
       "api_key_env": "GOOGLE_API_KEY"
     }
+  },
+  "agent": {
+    "enabled": true,
+    "cycle_interval_minutes": 5 
   }
 }

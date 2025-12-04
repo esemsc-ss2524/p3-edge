@@ -84,7 +84,7 @@ An edge-computing autonomous grocery shopping agent that leverages on-device AI 
    ```bash
    sudo apt update
    sudo apt install sqlcipher libsqlcipher-dev
-   sudo apt install tesseract-ocr 
+   sudo apt install tesseract-ocr
    ```
 
    Python libraries:
@@ -92,6 +92,10 @@ An edge-computing autonomous grocery shopping agent that leverages on-device AI 
    pip install -r requirements.txt
    ```
 
+   For gemini api inference:
+   ```bash
+   pip install -r requirements-gemini.txt
+   ```
 
 
 4. **Initialize the database**

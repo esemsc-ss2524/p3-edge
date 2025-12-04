@@ -61,7 +61,7 @@ class AgentCycleWorker(QThread):
             self.memory.add_memory(
                 content=f"Starting decision cycle. Reason: {self.trigger_reason}",
                 memory_type="observation",
-                importance=5,
+                importance=50,
                 cycle_id=self.cycle_id,
                 outcome="pending"
             )
@@ -70,7 +70,7 @@ class AgentCycleWorker(QThread):
             response = self.llm_service.chat_with_tools(
                 message="Execute autonomous maintenance cycle based on current state.",
                 system_prompt=self.system_prompt,
-                max_iterations=5
+                max_iterations=50
             )
 
             # Process results

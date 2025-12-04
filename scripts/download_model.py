@@ -2,7 +2,7 @@
 """
 Model download script.
 
-Downloads Gemma 3 4b model for edge inference using Ollama.
+Downloads model for edge inference using Ollama.
 """
 
 import sys
@@ -52,7 +52,7 @@ def download_gemma_model() -> None:
 
         # if 'gemma3:4b' in model_names or 'gemma2:latest' in model_names:
         # if 'gemma3n:e2b-it-q4_K_M' in model_names:
-        if 'gemma3-tools:4b' in model_names:
+        if 'orieg/gemma3-tools:4b' in model_names:
             logger.info("Gemma model already downloaded!")
             return
     except Exception as e:
