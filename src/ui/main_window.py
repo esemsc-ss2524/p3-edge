@@ -87,24 +87,23 @@ class MainWindow(QMainWindow):
         """Create the left navigation panel."""
         self.nav_panel = QWidget()
         self.nav_panel.setMaximumWidth(250)
-        # Apply futuristic color palette
         self.nav_panel.setStyleSheet("""
             QWidget {
-                background-color: #3D4145;
+                background-color: #2c3e50;
             }
             QPushButton {
                 background-color: transparent;
-                color: #FFFEFF;
+                color: white;
                 text-align: left;
                 padding: 15px 20px;
                 border: none;
                 font-size: 14px;
             }
             QPushButton:hover {
-                background-color: rgba(18, 128, 197, 0.3);
+                background-color: #34495e;
             }
             QPushButton:pressed {
-                background-color: #1280C5;
+                background-color: #1abc9c;
             }
         """)
 
@@ -116,11 +115,11 @@ class MainWindow(QMainWindow):
         title_label = QLabel("P3-Edge")
         title_label.setStyleSheet("""
             QLabel {
-                color: #FFFEFF;
+                color: white;
                 font-size: 24px;
                 font-weight: bold;
                 padding: 20px;
-                background-color: #1280C5;
+                background-color: #1abc9c;
             }
         """)
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -129,15 +128,14 @@ class MainWindow(QMainWindow):
         # Navigation buttons
         self.nav_buttons = {}
 
-        # Reorganized navigation: Orders moved to Order History, Smart Fridge under Settings
         nav_items = [
             ("P3 Home", self.show_dashboard),
             ("Inventory", self.show_inventory),
             ("Forecasts", self.show_forecasts),
             ("Shopping Cart", self.show_shopping_cart),
-            ("Order History", self.show_order_history),
+            ("Orders", self.show_order_history),
+            ("Smart Fridge", self.show_smart_fridge),
             ("Settings", self.show_settings),
-            ("  Smart Fridge", self.show_smart_fridge),  # Indented to show it's under Settings
         ]
 
         for label, callback in nav_items:
@@ -157,7 +155,7 @@ class MainWindow(QMainWindow):
         self.content_stack = QStackedWidget()
         self.content_stack.setStyleSheet("""
             QStackedWidget {
-                background-color: #F3FBFB;
+                background-color: #ecf0f1;
             }
         """)
 
