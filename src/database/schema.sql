@@ -145,3 +145,22 @@ CREATE TABLE IF NOT EXISTS conversations (
 );
 
 CREATE INDEX IF NOT EXISTS idx_conversations_timestamp ON conversations(timestamp);
+
+-- Agent memory - autonomous agent's persistent memory stream
+CREATE TABLE IF NOT EXISTS agent_memory (
+    memory_id TEXT PRIMARY KEY,
+    cycle_id TEXT,  -- Groups memories from same autonomous cycle
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    memory_type TEXT NOT NULL,  -- 'observation', 'action', 'plan', 'summary', 'reflection'
+    content TEXT NOT NULL,  -- The actual memory content
+    importance INTEGER DEFAULT 1,  -- 1-10 scale for pruning strategy
+    context TEXT,  -- JSON with relevant context (item_ids, tool_calls, etc.)
+    outcome TEXT,  -- 'success', 'failure', 'pending', 'skipped'
+    consolidated INTEGER DEFAULT 0,  -- 0 = raw memory, 1 = already summarized
+    embedding BLOB  -- Future: vector embeddings for semantic search
+);
+
+CREATE INDEX IF NOT EXISTS idx_agent_memory_timestamp ON agent_memory(timestamp);
+CREATE INDEX IF NOT EXISTS idx_agent_memory_cycle ON agent_memory(cycle_id);
+CREATE INDEX IF NOT EXISTS idx_agent_memory_type ON agent_memory(memory_type);
+CREATE INDEX IF NOT EXISTS idx_agent_memory_importance ON agent_memory(importance);

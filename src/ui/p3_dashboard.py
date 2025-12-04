@@ -207,11 +207,12 @@ class P3Dashboard(QWidget):
     Focus: Character presence and natural conversation.
     """
 
-    def __init__(self, db_manager: DatabaseManager, tool_executor=None, parent=None):
+    def __init__(self, db_manager: DatabaseManager, tool_executor=None, autonomous_agent=None, parent=None):
         super().__init__(parent)
         self.logger = get_logger("p3_dashboard")
         self.db_manager = db_manager
         self.tool_executor = tool_executor
+        self.autonomous_agent = autonomous_agent
         self.llm_service: Optional[LLMService] = None
         self.chat_worker: Optional[ChatWorker] = None
 
@@ -221,6 +222,12 @@ class P3Dashboard(QWidget):
         self._setup_ui()
         self._initialize_llm()
         self._update_stats()
+
+        # Connect to autonomous agent signals if available
+        if self.autonomous_agent:
+            self.autonomous_agent.cycle_started.connect(self._on_agent_cycle_started)
+            self.autonomous_agent.cycle_completed.connect(self._on_agent_cycle_completed)
+            self.autonomous_agent.action_taken.connect(self._on_agent_action)
 
         # Update stats periodically
         self.stats_timer = QTimer()
@@ -399,9 +406,9 @@ class P3Dashboard(QWidget):
         
         if movie.isValid():
             # --- SCALING LOGIC START ---
-            # We enforce a specific height, e.g., 400px (or roughly 60% of screen height)
-            # You can tweak this number based on your screen size
-            target_height = 500 
+            # We enforce a specific height for the character animation
+            # Reduced size to keep dashboard compact
+            target_height = 250 
             
             # Jump to frame 0 to get the actual size of the video/gif
             movie.jumpToFrame(0)
@@ -521,6 +528,39 @@ class P3Dashboard(QWidget):
             res = self.db_manager.execute_query("SELECT COUNT(*) FROM orders WHERE status = 'PENDING'")
             val = res[0][0] if res else 0
             self.stat_widgets["pending"].update_value(str(val))
-            
+
         except Exception as e:
             self.logger.error(f"Stats update error: {e}")
+
+    # --- Autonomous Agent Signal Handlers ---
+
+    def _on_agent_cycle_started(self, cycle_id: str):
+        """Called when autonomous agent starts a new cycle."""
+        self.logger.info(f"Agent cycle started: {cycle_id}")
+        self._add_message(f"[Agent] Starting autonomous maintenance cycle...", is_user=False)
+        self.status_dot.setStyleSheet("color: #f39c12;")  # Orange for active
+
+    def _on_agent_cycle_completed(self, cycle_id: str, summary: dict):
+        """Called when autonomous agent completes a cycle."""
+        status = summary.get('status', 'unknown')
+        self.logger.info(f"Agent cycle completed: {cycle_id} - Status: {status}")
+
+        if status == 'completed':
+            tool_calls = summary.get('tool_calls', 0)
+            response = summary.get('response', 'No actions taken')
+            self._add_message(f"[Agent] Cycle complete. {tool_calls} action(s) taken. {response}", is_user=False)
+        elif status == 'skipped':
+            reason = summary.get('reason', 'No action needed')
+            self.logger.debug(f"Agent cycle skipped: {reason}")
+            # Don't show skipped cycles in chat to reduce clutter
+        elif status == 'error':
+            error = summary.get('error', 'Unknown error')
+            self._add_message(f"[Agent] Cycle failed: {error}", is_user=False)
+
+        self.status_dot.setStyleSheet("color: #27ae60;")  # Green for ready
+        self._update_stats()  # Refresh stats after agent actions
+
+    def _on_agent_action(self, action_type: str, description: str):
+        """Called when autonomous agent takes an action."""
+        self.logger.info(f"Agent action: {action_type} - {description}")
+        self._add_message(f"[Agent] {description}", is_user=False)

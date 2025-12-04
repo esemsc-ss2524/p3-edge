@@ -19,6 +19,7 @@ from src.models import ActionType, Actor, create_audit_log
 from src.services.forecast_service import ForecastService
 from src.services.training_scheduler import TrainingScheduler
 from src.services.cart_service import CartService
+from src.services.autonomous_agent import AutonomousAgent
 from src.vendors.amazon_client import AmazonClient
 from src.ui import MainWindow
 from src.utils import get_audit_logger, get_logger
@@ -40,6 +41,7 @@ from src.tools.forecast_tools import (
     GetLowStockPredictionsTool,
     AnalyzeUsageTrendsTool,
     GetModelPerformanceTool,
+    CheckModelHealthTool,
 )
 from src.tools.training_tools import (
     StartModelTrainingTool,
@@ -85,6 +87,7 @@ class P3EdgeApplication:
         self.cart_service = None
         self.vendor_client = None
         self.tool_executor = None
+        self.autonomous_agent = None
         self.main_window = None
 
     def initialize(self) -> bool:
@@ -144,11 +147,22 @@ class P3EdgeApplication:
             self.tool_executor = self._initialize_tools()
             self.logger.info(f"Tool system initialized with {self.tool_executor.registry.get_tool_count()} tools")
 
+            # Initialize autonomous agent
+            agent_enabled = self.config.get("agent.enabled", True)
+            agent_interval = self.config.get("agent.cycle_interval_minutes", 60)
+            self.autonomous_agent = AutonomousAgent(
+                db_manager=self.db_manager,
+                tool_executor=self.tool_executor,
+                cycle_interval_minutes=agent_interval,
+                enabled=agent_enabled
+            )
+            self.logger.info(f"Autonomous agent initialized (enabled: {agent_enabled}, interval: {agent_interval}m)")
+
             # Log startup
             self.audit_logger.log_action(
                 action_type=ActionType.SYSTEM_STARTUP.value,
                 actor=Actor.SYSTEM.value,
-                details={"version": "0.1.0", "phase": "Phase 5: LLM Agent with Tools"}
+                details={"version": "0.1.0", "phase": "Phase 6: Autonomous Agent"}
             )
 
             self.logger.info("Application initialized successfully")
@@ -187,6 +201,7 @@ class P3EdgeApplication:
         registry.register(GetLowStockPredictionsTool(self.forecast_service))
         registry.register(AnalyzeUsageTrendsTool(self.forecast_service))
         registry.register(GetModelPerformanceTool(self.forecast_service))
+        registry.register(CheckModelHealthTool(self.forecast_service))
 
         # Initialize and register training tools
         if self.training_scheduler:
@@ -250,15 +265,21 @@ class P3EdgeApplication:
             app.setApplicationName("P3-Edge")
             app.setOrganizationName("P3-Edge")
 
-            # Create and show main window with db_manager, tool_executor, and cart_service
+            # Create and show main window with db_manager, tool_executor, cart_service, and autonomous_agent
             self.main_window = MainWindow(
                 db_manager=self.db_manager,
                 tool_executor=self.tool_executor,
-                cart_service=self.cart_service
+                cart_service=self.cart_service,
+                autonomous_agent=self.autonomous_agent
             )
             self.main_window.show()
 
             self.logger.info("Application running...")
+
+            # Start autonomous agent
+            if self.autonomous_agent:
+                self.autonomous_agent.start()
+                self.logger.info("Autonomous agent started")
 
             # Run event loop
             exit_code = app.exec()
@@ -283,6 +304,10 @@ class P3EdgeApplication:
     def shutdown(self) -> None:
         """Clean shutdown of the application."""
         self.logger.info("Shutting down application...")
+
+        # Stop autonomous agent
+        if self.autonomous_agent:
+            self.autonomous_agent.stop()
 
         # Stop training scheduler
         if self.training_scheduler:
