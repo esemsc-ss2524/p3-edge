@@ -62,7 +62,7 @@ class OrderPage(QWidget):
         header_layout.addStretch()
 
         # Refresh button
-        refresh_btn = QPushButton("🔄 Refresh")
+        refresh_btn = QPushButton("Refresh")
         refresh_btn.setStyleSheet("""
             QPushButton {
                 background-color: #3498db;

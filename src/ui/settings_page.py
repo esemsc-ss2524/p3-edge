@@ -424,16 +424,16 @@ class SettingsPage(QWidget):
 
         # Budget Settings Tab
         budget_widget = BudgetSettingsWidget(self.db_manager)
-        self.tabs.addTab(budget_widget, "💰 Budget")
+        self.tabs.addTab(budget_widget, "Budget")
 
         # Smart Fridge Tab
         if self.db_manager:
             smart_fridge_widget = SmartFridgeConnectionWidget(self.db_manager)
-            self.tabs.addTab(smart_fridge_widget, "🧊 Smart Fridge")
+            self.tabs.addTab(smart_fridge_widget, "Smart Fridge")
         else:
             placeholder = QLabel("Smart Fridge settings unavailable\n\nDatabase not initialized.")
             placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
             placeholder.setStyleSheet("color: #95a5a6; font-size: 14px;")
-            self.tabs.addTab(placeholder, "🧊 Smart Fridge")
+            self.tabs.addTab(placeholder, "Smart Fridge")
 
         layout.addWidget(self.tabs)
