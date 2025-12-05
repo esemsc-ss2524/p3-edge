@@ -242,13 +242,28 @@ class BudgetSettingsWidget(QWidget):
             # Load budget based on current period selection
             period = self.budget_period.currentText()
             if period == "Weekly" and "spend_cap_weekly" in prefs:
-                self.budget_amount.setValue(float(prefs["spend_cap_weekly"]))
+                value = prefs["spend_cap_weekly"]
+                if value and value != 'null':
+                    try:
+                        self.budget_amount.setValue(float(value))
+                    except (ValueError, TypeError):
+                        self.logger.warning(f"Invalid weekly budget value: {value}")
             elif period == "Monthly" and "spend_cap_monthly" in prefs:
-                self.budget_amount.setValue(float(prefs["spend_cap_monthly"]))
+                value = prefs["spend_cap_monthly"]
+                if value and value != 'null':
+                    try:
+                        self.budget_amount.setValue(float(value))
+                    except (ValueError, TypeError):
+                        self.logger.warning(f"Invalid monthly budget value: {value}")
 
             # Load alert threshold
             if "budget_alert_threshold" in prefs:
-                self.alert_threshold.setValue(float(prefs["budget_alert_threshold"]))
+                value = prefs["budget_alert_threshold"]
+                if value and value != 'null':
+                    try:
+                        self.alert_threshold.setValue(float(value))
+                    except (ValueError, TypeError):
+                        self.logger.warning(f"Invalid alert threshold value: {value}")
 
             self._update_spending_display()
 
@@ -266,18 +281,16 @@ class BudgetSettingsWidget(QWidget):
             return
 
         try:
-            conn = self.db_manager.get_connection()
-            cursor = conn.cursor()
-
             # Determine which preference key to use based on period
             period = self.budget_period.currentText()
+            budget_value = self.budget_amount.value()
+
             if period == "Weekly":
                 budget_key = "spend_cap_weekly"
             elif period == "Monthly":
                 budget_key = "spend_cap_monthly"
             else:
                 # For Bi-weekly and Quarterly, we'll store as monthly equivalent
-                budget_value = self.budget_amount.value()
                 if period == "Bi-weekly":
                     # Store as monthly (bi-weekly * ~2.17)
                     budget_key = "spend_cap_monthly"
@@ -286,7 +299,10 @@ class BudgetSettingsWidget(QWidget):
                     # Store as monthly (quarterly / 3)
                     budget_key = "spend_cap_monthly"
                     budget_value = budget_value / 3
-                self.budget_amount.setValue(budget_value)
+
+            # Use execute_query for inserts with commit
+            conn = self.db_manager.get_connection()
+            cursor = conn.cursor()
 
             # Save budget preference
             cursor.execute(
@@ -295,7 +311,7 @@ class BudgetSettingsWidget(QWidget):
                 VALUES (?, ?)
                 ON CONFLICT(key) DO UPDATE SET value = excluded.value
                 """,
-                (budget_key, str(self.budget_amount.value()))
+                (budget_key, str(budget_value))
             )
 
             # Save alert threshold
@@ -321,6 +337,8 @@ class BudgetSettingsWidget(QWidget):
 
         except Exception as e:
             self.logger.error(f"Failed to save budget settings: {e}")
+            import traceback
+            self.logger.error(traceback.format_exc())
             QMessageBox.critical(
                 self,
                 "Save Failed",

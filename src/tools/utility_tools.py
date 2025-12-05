@@ -242,9 +242,19 @@ class CheckBudgetTool(BaseTool):
 
         for key, value in prefs:
             if key == "spend_cap_weekly":
-                budget_weekly = float(value)
+                try:
+                    # Handle 'null' string or None values
+                    if value and value != 'null':
+                        budget_weekly = float(value)
+                except (ValueError, TypeError):
+                    pass
             elif key == "spend_cap_monthly":
-                budget_monthly = float(value)
+                try:
+                    # Handle 'null' string or None values
+                    if value and value != 'null':
+                        budget_monthly = float(value)
+                except (ValueError, TypeError):
+                    pass
 
         # Calculate spending this week
         week_start = (datetime.now() - timedelta(days=datetime.now().weekday())).date()
