@@ -55,6 +55,7 @@ ollama serve
 - Always up-to-date models
 - Potentially better performance
 - Access to latest Gemini models
+- Uses new `google-genai` SDK (v0.3+) for better reliability and features
 
 **Requirements:**
 - Google API key
@@ -73,8 +74,8 @@ export GOOGLE_API_KEY="your-api-key-here"
 # On Windows:
 # set GOOGLE_API_KEY=your-api-key-here
 
-# 3. Install LangChain dependencies
-pip install langchain-google-genai
+# 3. Install Gemini dependencies (includes new google-genai SDK)
+pip install -r requirements-gemini.txt
 
 # 4. Configure P3-Edge
 # Edit config/app_config.json:
