@@ -348,3 +348,250 @@ class MemoryService:
         except Exception as e:
             self.logger.error(f"Error clearing memories: {e}")
             return False
+
+    # --- User Preferences Management ---
+
+    def learn_preference(
+        self,
+        category: str,
+        preference_key: str,
+        preference_value: str,
+        source: str = "chat",
+        learned_from: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> str:
+        """
+        Learn or reinforce a user preference.
+
+        If the preference already exists, increases confidence and mention count.
+        If new, creates it with initial confidence.
+
+        Args:
+            category: 'dietary', 'allergy', 'product_preference', 'brand_preference', 'general'
+            preference_key: e.g., 'milk_type', 'peanut_allergy'
+            preference_value: e.g., 'oat milk', 'true'
+            source: Where this was learned from ('chat', 'autonomous', 'manual')
+            learned_from: conversation_id or cycle_id
+            metadata: Additional context as JSON
+
+        Returns:
+            Preference ID
+        """
+        try:
+            # Check if preference already exists
+            check_query = """
+                SELECT preference_id, confidence, mention_count
+                FROM user_preferences
+                WHERE preference_key = ? AND preference_value = ?
+            """
+            result = self.db_manager.execute_query(
+                check_query,
+                (preference_key, preference_value)
+            )
+
+            if result:
+                # Update existing preference
+                pref_id = result[0]['preference_id']
+                current_confidence = result[0]['confidence']
+                current_mentions = result[0]['mention_count']
+
+                # Increase confidence (asymptotic to 1.0)
+                new_confidence = min(current_confidence + (1.0 - current_confidence) * 0.3, 0.95)
+                new_mentions = current_mentions + 1
+
+                update_query = """
+                    UPDATE user_preferences
+                    SET confidence = ?,
+                        mention_count = ?,
+                        last_confirmed = CURRENT_TIMESTAMP,
+                        source = ?,
+                        learned_from = ?,
+                        metadata = ?
+                    WHERE preference_id = ?
+                """
+                self.db_manager.execute_update(
+                    update_query,
+                    (
+                        new_confidence,
+                        new_mentions,
+                        source,
+                        learned_from,
+                        json.dumps(metadata) if metadata else None,
+                        pref_id
+                    )
+                )
+
+                self.logger.info(
+                    f"Reinforced preference: {preference_key}={preference_value} "
+                    f"(confidence: {current_confidence:.2f} -> {new_confidence:.2f}, "
+                    f"mentions: {new_mentions})"
+                )
+
+                return pref_id
+
+            else:
+                # Create new preference
+                pref_id = str(uuid.uuid4())
+
+                insert_query = """
+                    INSERT INTO user_preferences
+                    (preference_id, category, preference_key, preference_value,
+                     confidence, source, learned_from, metadata)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """
+                self.db_manager.execute_update(
+                    insert_query,
+                    (
+                        pref_id,
+                        category,
+                        preference_key,
+                        preference_value,
+                        0.5,  # Initial confidence
+                        source,
+                        learned_from,
+                        json.dumps(metadata) if metadata else None
+                    )
+                )
+
+                self.logger.info(f"Learned new preference: {preference_key}={preference_value}")
+
+                return pref_id
+
+        except Exception as e:
+            self.logger.error(f"Error learning preference: {e}")
+            raise
+
+    def get_preferences(
+        self,
+        category: Optional[str] = None,
+        min_confidence: float = 0.3
+    ) -> List[Dict[str, Any]]:
+        """
+        Get user preferences, optionally filtered by category.
+
+        Args:
+            category: Filter by category (None = all)
+            min_confidence: Minimum confidence threshold (default 0.3)
+
+        Returns:
+            List of preference dictionaries
+        """
+        try:
+            if category:
+                query = """
+                    SELECT preference_id, category, preference_key, preference_value,
+                           confidence, source, learned_from, first_mentioned,
+                           last_confirmed, mention_count, metadata
+                    FROM user_preferences
+                    WHERE category = ? AND confidence >= ?
+                    ORDER BY confidence DESC, mention_count DESC
+                """
+                results = self.db_manager.execute_query(query, (category, min_confidence))
+            else:
+                query = """
+                    SELECT preference_id, category, preference_key, preference_value,
+                           confidence, source, learned_from, first_mentioned,
+                           last_confirmed, mention_count, metadata
+                    FROM user_preferences
+                    WHERE confidence >= ?
+                    ORDER BY category, confidence DESC, mention_count DESC
+                """
+                results = self.db_manager.execute_query(query, (min_confidence,))
+
+            preferences = []
+            for row in results:
+                preferences.append({
+                    'preference_id': row['preference_id'],
+                    'category': row['category'],
+                    'preference_key': row['preference_key'],
+                    'preference_value': row['preference_value'],
+                    'confidence': row['confidence'],
+                    'source': row['source'],
+                    'learned_from': row['learned_from'],
+                    'first_mentioned': row['first_mentioned'],
+                    'last_confirmed': row['last_confirmed'],
+                    'mention_count': row['mention_count'],
+                    'metadata': json.loads(row['metadata']) if row['metadata'] else None
+                })
+
+            return preferences
+
+        except Exception as e:
+            self.logger.error(f"Error getting preferences: {e}")
+            return []
+
+    def get_preference_context(self, min_confidence: float = 0.5) -> str:
+        """
+        Get a formatted preference context string for LLM prompts.
+
+        Args:
+            min_confidence: Minimum confidence threshold
+
+        Returns:
+            Formatted string with user preferences
+        """
+        try:
+            preferences = self.get_preferences(min_confidence=min_confidence)
+
+            if not preferences:
+                return "No strong user preferences learned yet."
+
+            # Group by category
+            by_category = {}
+            for pref in preferences:
+                cat = pref['category']
+                if cat not in by_category:
+                    by_category[cat] = []
+                by_category[cat].append(pref)
+
+            # Format output
+            lines = ["=== User Preferences (Learned) ==="]
+
+            for category, prefs in sorted(by_category.items()):
+                lines.append(f"\n{category.upper()}:")
+                for pref in prefs:
+                    confidence_pct = int(pref['confidence'] * 100)
+                    lines.append(
+                        f"  • {pref['preference_key']}: {pref['preference_value']} "
+                        f"({confidence_pct}% confident, mentioned {pref['mention_count']}x)"
+                    )
+
+            return "\n".join(lines)
+
+        except Exception as e:
+            self.logger.error(f"Error getting preference context: {e}")
+            return "Error retrieving user preferences."
+
+    def get_preference_value(
+        self,
+        preference_key: str,
+        min_confidence: float = 0.5
+    ) -> Optional[str]:
+        """
+        Get the value for a specific preference key if confidence is high enough.
+
+        Args:
+            preference_key: The preference key to look up
+            min_confidence: Minimum confidence required
+
+        Returns:
+            Preference value or None if not found/low confidence
+        """
+        try:
+            query = """
+                SELECT preference_value, confidence
+                FROM user_preferences
+                WHERE preference_key = ? AND confidence >= ?
+                ORDER BY confidence DESC, mention_count DESC
+                LIMIT 1
+            """
+            result = self.db_manager.execute_query(query, (preference_key, min_confidence))
+
+            if result:
+                return result[0]['preference_value']
+
+            return None
+
+        except Exception as e:
+            self.logger.error(f"Error getting preference value: {e}")
+            return None

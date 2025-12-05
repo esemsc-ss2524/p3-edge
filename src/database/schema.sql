@@ -164,3 +164,22 @@ CREATE INDEX IF NOT EXISTS idx_agent_memory_timestamp ON agent_memory(timestamp)
 CREATE INDEX IF NOT EXISTS idx_agent_memory_cycle ON agent_memory(cycle_id);
 CREATE INDEX IF NOT EXISTS idx_agent_memory_type ON agent_memory(memory_type);
 CREATE INDEX IF NOT EXISTS idx_agent_memory_importance ON agent_memory(importance);
+
+-- User preferences - learned dietary preferences, allergies, and product preferences
+CREATE TABLE IF NOT EXISTS user_preferences (
+    preference_id TEXT PRIMARY KEY,
+    category TEXT NOT NULL,  -- 'dietary', 'allergy', 'product_preference', 'brand_preference', 'general'
+    preference_key TEXT NOT NULL,  -- e.g., 'milk_type', 'peanut_allergy', 'organic_preference'
+    preference_value TEXT NOT NULL,  -- e.g., 'oat milk', 'true', 'yes'
+    confidence REAL DEFAULT 0.5,  -- 0.0-1.0 confidence score (increases with repeated mentions)
+    source TEXT,  -- 'chat', 'autonomous', 'manual'
+    learned_from TEXT,  -- conversation_id or cycle_id where this was learned
+    first_mentioned DATETIME DEFAULT CURRENT_TIMESTAMP,
+    last_confirmed DATETIME DEFAULT CURRENT_TIMESTAMP,
+    mention_count INTEGER DEFAULT 1,
+    metadata TEXT  -- JSON for additional context
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_preferences_category ON user_preferences(category);
+CREATE INDEX IF NOT EXISTS idx_user_preferences_key ON user_preferences(preference_key);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_user_preferences_key_value ON user_preferences(preference_key, preference_value);

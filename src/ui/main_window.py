@@ -41,7 +41,8 @@ class MainWindow(QMainWindow):
         db_manager: Optional[DatabaseManager] = None,
         tool_executor: Optional = None,
         cart_service: Optional = None,
-        autonomous_agent: Optional = None
+        autonomous_agent: Optional = None,
+        memory_service: Optional = None
     ) -> None:
         """
         Initialize the main window.
@@ -51,6 +52,7 @@ class MainWindow(QMainWindow):
             tool_executor: Tool executor for LLM agent (optional)
             cart_service: Cart service instance (optional, shared with tools)
             autonomous_agent: Autonomous agent instance (optional)
+            memory_service: Memory service instance (optional)
         """
         super().__init__()
         self.setWindowTitle("P3-Edge - Autonomous Grocery Assistant")
@@ -61,6 +63,7 @@ class MainWindow(QMainWindow):
         self.tool_executor = tool_executor
         self.cart_service = cart_service
         self.autonomous_agent = autonomous_agent
+        self.memory_service = memory_service
         self.inventory_service = InventoryService(db_manager) if db_manager else None
         self.forecast_service = ForecastService(db_manager) if db_manager else None
         self.logger = get_logger("main_window")
@@ -161,7 +164,7 @@ class MainWindow(QMainWindow):
 
         # Create pages
         self.pages = {
-            "dashboard": P3Dashboard(self.db_manager, tool_executor=self.tool_executor, autonomous_agent=self.autonomous_agent, cart_service=self.cart_service) if self.db_manager else self._create_placeholder_page("Dashboard"),
+            "dashboard": P3Dashboard(self.db_manager, tool_executor=self.tool_executor, autonomous_agent=self.autonomous_agent, cart_service=self.cart_service, memory_service=self.memory_service) if self.db_manager else self._create_placeholder_page("Dashboard"),
             "inventory": InventoryPage(self.inventory_service) if self.inventory_service else self._create_placeholder_page("Inventory Management"),
             "forecasts": ForecastPage(self.forecast_service) if self.forecast_service else self._create_placeholder_page("Forecast View"),
             "shopping_cart": CartPage(self.db_manager, cart_service=self.cart_service) if self.db_manager else self._create_placeholder_page("Shopping Cart"),

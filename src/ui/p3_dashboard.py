@@ -19,6 +19,7 @@ from PyQt6.QtGui import QColor, QFont
 # --- Import your existing services ---
 from ..services.llm_service import LLMService
 from ..services.llm_factory import create_llm_service
+from ..services.memory_service import MemoryService
 from ..config import get_config_manager
 from ..models.tool_models import AgentResponse
 from ..database.db_manager import DatabaseManager
@@ -205,13 +206,14 @@ class P3Dashboard(QWidget):
     Focus: Character presence and natural conversation.
     """
 
-    def __init__(self, db_manager: DatabaseManager, tool_executor=None, autonomous_agent=None, cart_service=None, parent=None):
+    def __init__(self, db_manager: DatabaseManager, tool_executor=None, autonomous_agent=None, cart_service=None, memory_service=None, parent=None):
         super().__init__(parent)
         self.logger = get_logger("p3_dashboard")
         self.db_manager = db_manager
         self.tool_executor = tool_executor
         self.autonomous_agent = autonomous_agent
         self.cart_service = cart_service
+        self.memory_service = memory_service or MemoryService(db_manager) if db_manager else None
         self.llm_service: Optional[LLMService] = None
         self.chat_worker: Optional[ChatWorker] = None
 
@@ -504,6 +506,28 @@ class P3Dashboard(QWidget):
 
     # --- Chat Logic ---
 
+    def _build_chat_system_prompt(self) -> str:
+        """Build the system prompt for chat with user preferences."""
+        base_prompt = """You are P3, a helpful grocery shopping assistant.
+
+You help users manage their grocery inventory, make shopping recommendations, and answer questions about their groceries.
+
+IMPORTANT: Learn and remember user preferences by using the 'learn_user_preference' tool when users mention:
+- Dietary preferences (e.g., "I prefer oat milk" → learn_user_preference(category='dietary', preference_key='milk_type', preference_value='oat milk'))
+- Allergies (e.g., "I'm allergic to peanuts" → learn_user_preference(category='allergy', preference_key='peanut_allergy', preference_value='true'))
+- Brand preferences (e.g., "I like Organic Valley" → learn_user_preference(category='brand_preference', preference_key='preferred_dairy_brand', preference_value='Organic Valley'))
+- Product preferences (e.g., "I prefer organic products" → learn_user_preference(category='product_preference', preference_key='organic_preference', preference_value='preferred'))
+
+ALWAYS use 'get_learned_preferences' tool at the start of conversations about shopping or product searches to understand user preferences."""
+
+        # Add learned preferences to context
+        if self.memory_service:
+            preference_context = self.memory_service.get_preference_context(min_confidence=0.4)
+            if preference_context != "No strong user preferences learned yet.":
+                base_prompt += f"\n\n{preference_context}"
+
+        return base_prompt
+
     def _send_message(self):
         message = self.input_field.toPlainText().strip()
         if not message:
@@ -521,8 +545,11 @@ class P3Dashboard(QWidget):
         self.input_field.setEnabled(False)
         self.status_dot.setStyleSheet("color: #f39c12;")  # Orange for thinking
 
+        # Build system prompt with preferences
+        system_prompt = self._build_chat_system_prompt()
+
         # Threading
-        self.chat_worker = ChatWorker(self.llm_service, message)
+        self.chat_worker = ChatWorker(self.llm_service, message, system_prompt=system_prompt)
         self.chat_worker.response_ready.connect(self._handle_response)
         self.chat_worker.error_occurred.connect(self._handle_error)
         self.chat_worker.finished.connect(self._chat_finished)

@@ -434,3 +434,176 @@ class ConvertUnitTool(BaseTool):
                     set(f"{k[0]} -> {k[1]}" for k in conversions.keys())
                 ),
             }
+
+
+class LearnUserPreferenceTool(BaseTool):
+    """Learn and store user dietary preferences, allergies, and product preferences."""
+
+    def __init__(self, memory_service):
+        self.memory_service = memory_service
+
+    @property
+    def name(self) -> str:
+        return "learn_user_preference"
+
+    @property
+    def description(self) -> str:
+        return """Learn and store a user preference discovered during conversation.
+        Use this when the user mentions dietary preferences (e.g., 'I prefer oat milk'),
+        allergies (e.g., 'I'm allergic to peanuts'), brand preferences, or any other
+        shopping-related preference. This helps P3 make better decisions in the future."""
+
+    @property
+    def category(self) -> ToolCategory:
+        return ToolCategory.UTILITY
+
+    @property
+    def parameters(self) -> List[ToolParameter]:
+        return [
+            ToolParameter(
+                name="category",
+                type=ToolParameterType.STRING,
+                description="Category of preference: 'dietary', 'allergy', 'product_preference', 'brand_preference', or 'general'",
+                required=True,
+            ),
+            ToolParameter(
+                name="preference_key",
+                type=ToolParameterType.STRING,
+                description="Key identifying the preference (e.g., 'milk_type', 'peanut_allergy', 'organic_preference')",
+                required=True,
+            ),
+            ToolParameter(
+                name="preference_value",
+                type=ToolParameterType.STRING,
+                description="Value of the preference (e.g., 'oat milk', 'true', 'preferred')",
+                required=True,
+            ),
+        ]
+
+    @property
+    def returns(self) -> str:
+        return "Confirmation that preference was learned or reinforced"
+
+    def execute(
+        self,
+        category: str,
+        preference_key: str,
+        preference_value: str
+    ) -> Dict[str, Any]:
+        """Learn a user preference."""
+        try:
+            # Validate category
+            valid_categories = ['dietary', 'allergy', 'product_preference', 'brand_preference', 'general']
+            if category not in valid_categories:
+                return {
+                    "error": f"Invalid category '{category}'. Must be one of: {', '.join(valid_categories)}",
+                    "success": False
+                }
+
+            # Learn the preference
+            pref_id = self.memory_service.learn_preference(
+                category=category,
+                preference_key=preference_key,
+                preference_value=preference_value,
+                source="chat",
+                learned_from=None  # Can be enhanced to track conversation_id
+            )
+
+            # Get updated preference info
+            prefs = self.memory_service.get_preferences(min_confidence=0.0)
+            pref_info = next((p for p in prefs if p['preference_id'] == pref_id), None)
+
+            if pref_info:
+                confidence_pct = int(pref_info['confidence'] * 100)
+                return {
+                    "success": True,
+                    "message": f"Learned: {preference_key} = {preference_value}",
+                    "confidence": confidence_pct,
+                    "mention_count": pref_info['mention_count'],
+                    "first_time": pref_info['mention_count'] == 1
+                }
+            else:
+                return {
+                    "success": True,
+                    "message": f"Learned: {preference_key} = {preference_value}"
+                }
+
+        except Exception as e:
+            return {
+                "error": str(e),
+                "success": False
+            }
+
+
+class GetLearnedPreferencesTool(BaseTool):
+    """Retrieve learned user preferences from memory."""
+
+    def __init__(self, memory_service):
+        self.memory_service = memory_service
+
+    @property
+    def name(self) -> str:
+        return "get_learned_preferences"
+
+    @property
+    def description(self) -> str:
+        return """Get all learned user preferences including dietary preferences, allergies,
+        and product preferences. Use this to check what P3 knows about the user before making
+        decisions about products to search for or add to cart."""
+
+    @property
+    def category(self) -> ToolCategory:
+        return ToolCategory.UTILITY
+
+    @property
+    def parameters(self) -> List[ToolParameter]:
+        return [
+            ToolParameter(
+                name="category",
+                type=ToolParameterType.STRING,
+                description="Optional: filter by category ('dietary', 'allergy', 'product_preference', 'brand_preference', 'general'). Leave empty for all.",
+                required=False,
+            ),
+        ]
+
+    @property
+    def returns(self) -> str:
+        return "Dictionary of learned user preferences"
+
+    def execute(self, category: Optional[str] = None) -> Dict[str, Any]:
+        """Get learned preferences."""
+        try:
+            prefs = self.memory_service.get_preferences(
+                category=category,
+                min_confidence=0.3
+            )
+
+            if not prefs:
+                return {
+                    "preferences": [],
+                    "message": "No user preferences learned yet"
+                }
+
+            # Format for easy consumption
+            formatted = {}
+            for pref in prefs:
+                key = pref['preference_key']
+                if key not in formatted:
+                    formatted[key] = {
+                        'value': pref['preference_value'],
+                        'category': pref['category'],
+                        'confidence_pct': int(pref['confidence'] * 100),
+                        'mentions': pref['mention_count']
+                    }
+
+            return {
+                "preferences": formatted,
+                "count": len(formatted),
+                "message": f"Found {len(formatted)} learned preference(s)"
+            }
+
+        except Exception as e:
+            return {
+                "error": str(e),
+                "preferences": {}
+            }
