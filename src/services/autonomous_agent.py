@@ -73,22 +73,26 @@ class AgentCycleWorker(QThread):
                 max_iterations=50
             )
 
-            # Process results
-            for tool_call in response.tool_calls:
-                tool_name = tool_call.tool_name
-                outcome = "success" if not tool_call.error else "failure"
+            # Process results - iterate over tool_results instead of tool_calls
+            for tool_result in response.tool_results:
+                tool_name = tool_result.tool_name
+                outcome = "success" if tool_result.status == "success" else "failure"
+
+                # Find corresponding tool_call for parameters
+                tool_call = next((tc for tc in response.tool_calls if tc.tool_name == tool_name), None)
+                parameters = tool_call.arguments if tool_call else {}
 
                 # Create memory
                 context = {
                     "tool_name": tool_name,
-                    "parameters": tool_call.parameters,
-                    "result": str(tool_call.result)[:200] if tool_call.result else None,
-                    "error": tool_call.error
+                    "parameters": parameters,
+                    "result": str(tool_result.result)[:200] if tool_result.result else None,
+                    "error": tool_result.error
                 }
 
                 content = f"Executed {tool_name}"
-                if tool_call.error:
-                    content += f" - Failed: {tool_call.error}"
+                if tool_result.error:
+                    content += f" - Failed: {tool_result.error}"
                 else:
                     content += f" - Success"
 
