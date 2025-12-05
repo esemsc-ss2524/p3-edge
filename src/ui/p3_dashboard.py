@@ -1,24 +1,15 @@
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from pathlib import Path
-import os
+import json
 
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QThread, QSize
 from PyQt6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
-    QHBoxLayout,
-    QLabel,
-    QPushButton,
-    QTextEdit,
-    QFrame,
-    QScrollArea,
-    QMessageBox,
-    QSizePolicy,
-    QGraphicsDropShadowEffect
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTextEdit, 
+    QFrame, QScrollArea, QMessageBox, QSizePolicy, QGraphicsDropShadowEffect,
+    QListWidget, QListWidgetItem, QInputDialog, QProgressBar
 )
-from PyQt6.QtGui import QMovie, QColor, QFont, QIcon
+from PyQt6.QtGui import QMovie, QColor, QFont, QIcon, QPainter, QBrush, QPen
 
-# --- Import your existing services ---
 from ..services.llm_service import LLMService
 from ..services.llm_factory import create_llm_service
 from ..config import get_config_manager
@@ -26,541 +17,442 @@ from ..models.tool_models import AgentResponse
 from ..database.db_manager import DatabaseManager
 from ..utils import get_logger
 
+# --- Modern UI Components ---
 
-class ChatWorker(QThread):
-    """Worker thread for LLM chat with P3."""
-    response_ready = pyqtSignal(object)
-    error_occurred = pyqtSignal(str)
-
-    def __init__(self, llm_service: LLMService, message: str, system_prompt: Optional[str] = None):
-        super().__init__()
-        self.llm_service = llm_service
-        self.message = message
-        self.system_prompt = system_prompt
-
-    def run(self):
-        try:
-            if self.llm_service.tool_executor:
-                agent_response = self.llm_service.chat_with_tools(
-                    message=self.message,
-                    system_prompt=self.system_prompt
-                )
-                self.response_ready.emit(agent_response)
-            else:
-                response = self.llm_service.chat(
-                    message=self.message,
-                    system_prompt=self.system_prompt
-                )
-                agent_response = AgentResponse(
-                    response=response,
-                    tool_calls=[],
-                    tool_results=[],
-                    iterations=1
-                )
-                self.response_ready.emit(agent_response)
-        except Exception as e:
-            self.error_occurred.emit(str(e))
-
-
-class ModernChatMessage(QFrame):
-    """A modern, bubble-style chat message widget."""
-
-    def __init__(self, text: str, is_user: bool = True, parent=None):
+class ModernCard(QFrame):
+    """A sleek, rounded card container with optional shadow."""
+    def __init__(self, parent=None, bg_color="#FFFFFF"):
         super().__init__(parent)
-        self.text = text
-        self.is_user = is_user
-        self._setup_ui()
-
-    def _setup_ui(self):
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(20, 5, 20, 5) # Side margins for the whole row
-
-        # The Bubble
-        message_label = QLabel(self.text)
-        message_label.setWordWrap(True)
-        message_label.setTextInteractionFlags(
-            Qt.TextInteractionFlag.TextSelectableByMouse
-        )
-        
-        # Font settings
-        font = QFont("Segoe UI", 11)  # Modern clean font
-        message_label.setFont(font)
-
-        if self.is_user:
-            layout.addStretch()
-            # User: Blue bubble, white text, sharp bottom-right corner
-            message_label.setStyleSheet("""
-                QLabel {
-                    background-color: #007AFF;
-                    color: white;
-                    padding: 12px 18px;
-                    border-radius: 18px;
-                    border-bottom-right-radius: 4px;
-                    min-height: 20px;
-                }
-            """)
-            layout.addWidget(message_label)
-        else:
-            # P3: Light gray bubble, dark text, sharp bottom-left corner
-            message_label.setStyleSheet("""
-                QLabel {
-                    background-color: #E9E9EB;
-                    color: #000000;
-                    padding: 12px 18px;
-                    border-radius: 18px;
-                    border-bottom-left-radius: 4px;
-                    min-height: 20px;
-                }
-            """)
-            layout.addWidget(message_label)
-            layout.addStretch()
-
+        self.setStyleSheet(f"""
+            ModernCard {{
+                background-color: {bg_color};
+                border-radius: 16px;
+                border: 1px solid rgba(0, 0, 0, 0.05);
+            }}
+        """)
+        # Subtle shadow
+        shadow = QGraphicsDropShadowEffect(self)
+        shadow.setBlurRadius(20)
+        shadow.setColor(QColor(0, 0, 0, 15))
+        shadow.setOffset(0, 4)
+        self.setGraphicsEffect(shadow)
 
 class StatPill(QFrame):
-    """A small, capsule-shaped widget for stats (HUD style)."""
-    
-    def __init__(self, icon: str, label: str, initial_value: str, color_hex: str):
+    """Futuristic HUD stat pill."""
+    def __init__(self, label: str, value: str, icon: str, color: str):
         super().__init__()
-        self.setFrameStyle(QFrame.Shape.NoFrame)
+        self.setFixedSize(140, 80)
         self.setStyleSheet(f"""
             QFrame {{
-                background-color: white;
-                border: 1px solid #E5E5E5;
-                border-radius: 20px;
+                background-color: #FFFFFF;
+                border-radius: 16px;
+                border-left: 4px solid {color};
             }}
         """)
         
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(15, 8, 15, 8)
-        layout.setSpacing(10)
-
-        # Icon/Label
-        lbl_title = QLabel(f"{icon}  {label}")
-        lbl_title.setStyleSheet("color: #666; font-weight: 600; border: none;")
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(15, 10, 15, 10)
+        layout.setSpacing(2)
         
-        # Value
-        self.lbl_value = QLabel(initial_value)
-        self.lbl_value.setStyleSheet(f"color: {color_hex}; font-weight: bold; font-size: 14px; border: none;")
+        top_row = QHBoxLayout()
+        icon_lbl = QLabel(icon)
+        icon_lbl.setStyleSheet("font-size: 16px;")
+        lbl_title = QLabel(label)
+        lbl_title.setStyleSheet("color: #8E8E93; font-size: 11px; font-weight: 600; text-transform: uppercase;")
+        top_row.addWidget(icon_lbl)
+        top_row.addWidget(lbl_title)
+        top_row.addStretch()
         
-        layout.addWidget(lbl_title)
+        self.lbl_value = QLabel(value)
+        self.lbl_value.setStyleSheet(f"color: #1C1C1E; font-size: 24px; font-weight: 700; font-family: 'Segoe UI', sans-serif;")
+        
+        layout.addLayout(top_row)
         layout.addWidget(self.lbl_value)
-        
-        # Add subtle shadow
+
+        # Shadow
         shadow = QGraphicsDropShadowEffect(self)
         shadow.setBlurRadius(15)
-        shadow.setColor(QColor(0, 0, 0, 20))
-        shadow.setOffset(0, 2)
+        shadow.setColor(QColor(0, 0, 0, 10))
+        shadow.setOffset(0, 4)
         self.setGraphicsEffect(shadow)
 
     def update_value(self, value):
         self.lbl_value.setText(str(value))
 
-
-class AutoResizingTextEdit(QTextEdit):
-    """
-    A QTextEdit that auto-resizes its height to fit content 
-    up to a maximum height, then enables scrolling.
-    """
-    def __init__(self, parent=None):
+class ChatMessage(QFrame):
+    """Modern Apple-style chat bubble."""
+    def __init__(self, text: str, is_user: bool = True, parent=None):
         super().__init__(parent)
-        self.setFixedHeight(50)  # Initial single-line height
-        self.min_height = 50
-        self.max_height = 100    # Approx 3-4 lines depending on font
-        
-        # Style needed for the resize calculation to work correctly
-        self.setStyleSheet("""
-            QTextEdit {
-                background-color: white;
-                border: 1px solid #E5E5E5;
-                border-radius: 20px;
-                padding: 10px 15px;
-                font-size: 14px;
-                color: #2c3e50;
-            }
-            QTextEdit:focus {
-                border: 1px solid #3498db;
-            }
-        """)
-        
-        # Connect text changed signal to resize handler
-        self.textChanged.connect(self.adjust_height)
+        self.setFrameStyle(QFrame.Shape.NoFrame)
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(10, 5, 10, 5)
 
-    def adjust_height(self):
-        # Calculate the height of the document
-        doc_height = self.document().size().height()
-        # Add padding compensation (approx 20px for top/bottom padding)
-        target_height = doc_height + 25 
-        
-        if target_height > self.max_height:
-            self.setFixedHeight(self.max_height)
-            self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        msg_label = QLabel(text)
+        msg_label.setWordWrap(True)
+        msg_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        msg_label.setFont(QFont("Segoe UI", 11))
+
+        if is_user:
+            layout.addStretch()
+            msg_label.setStyleSheet("""
+                QLabel {
+                    background-color: #007AFF;
+                    color: white;
+                    padding: 12px 16px;
+                    border-radius: 18px;
+                    border-bottom-right-radius: 4px;
+                }
+            """)
+            layout.addWidget(msg_label)
         else:
-            # Snap to min_height if empty, otherwise grow
-            new_h = max(int(target_height), self.min_height)
-            self.setFixedHeight(new_h)
-            self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+            msg_label.setStyleSheet("""
+                QLabel {
+                    background-color: #E5E5EA;
+                    color: black;
+                    padding: 12px 16px;
+                    border-radius: 18px;
+                    border-bottom-left-radius: 4px;
+                }
+            """)
+            layout.addWidget(msg_label)
+            layout.addStretch()
 
+# --- Workers ---
+
+class ChatWorker(QThread):
+    response_ready = pyqtSignal(object)
+    error_occurred = pyqtSignal(str)
+
+    def __init__(self, llm_service, message):
+        super().__init__()
+        self.llm_service = llm_service
+        self.message = message
+
+    def run(self):
+        try:
+            if self.llm_service.tool_executor:
+                response = self.llm_service.chat_with_tools(self.message)
+                self.response_ready.emit(response)
+            else:
+                resp_text = self.llm_service.chat(self.message)
+                self.response_ready.emit(AgentResponse(response=resp_text))
+        except Exception as e:
+            self.error_occurred.emit(str(e))
+
+# --- Main Dashboard ---
 
 class P3Dashboard(QWidget):
-    """
-    Overhauled Autonomous Agent Interface.
-    Focus: Character presence and natural conversation.
-    """
-
     def __init__(self, db_manager: DatabaseManager, tool_executor=None, autonomous_agent=None, parent=None):
         super().__init__(parent)
-        self.logger = get_logger("p3_dashboard")
         self.db_manager = db_manager
         self.tool_executor = tool_executor
         self.autonomous_agent = autonomous_agent
-        self.llm_service: Optional[LLMService] = None
-        self.chat_worker: Optional[ChatWorker] = None
-
-        # UI State
+        self.logger = get_logger("p3_dashboard")
+        
+        self.llm_service = None
         self.stat_widgets = {}
-
+        
+        # Init
         self._setup_ui()
         self._initialize_llm()
         self._update_stats()
-
-        # Connect to autonomous agent signals if available
+        
+        # Connect Autonomous Agent Signals
         if self.autonomous_agent:
-            self.autonomous_agent.cycle_started.connect(self._on_agent_cycle_started)
-            self.autonomous_agent.cycle_completed.connect(self._on_agent_cycle_completed)
-            self.autonomous_agent.action_taken.connect(self._on_agent_action)
+            self.autonomous_agent.cycle_started.connect(self._on_auto_started)
+            self.autonomous_agent.action_taken.connect(self._on_auto_action)
+            self.autonomous_agent.cycle_completed.connect(self._on_auto_completed)
 
-        # Update stats periodically
+        # Timers
         self.stats_timer = QTimer()
         self.stats_timer.timeout.connect(self._update_stats)
-        self.stats_timer.start(30000) 
+        self.stats_timer.start(5000)  # Update HUD every 5s
 
     def _setup_ui(self):
-        """Set up the modern 2-pane UI with specific ratios."""
-        self.setStyleSheet("background-color: #F5F7FA;")
+        # Global Style
+        self.setStyleSheet("background-color: #F2F2F7; font-family: 'Segoe UI';")
         
         main_layout = QHBoxLayout(self)
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.setSpacing(0)
+        main_layout.setContentsMargins(20, 20, 20, 20)
+        main_layout.setSpacing(20)
 
-        # ==========================================================
-        # LEFT PANEL: The Character (P3) - 50% Width
-        # ==========================================================
-        left_panel = QFrame()
-        left_panel.setStyleSheet("background-color: #FFFFFF; border-right: 1px solid #E5E5E5;")
-        left_layout = QVBoxLayout(left_panel)
-        left_layout.setContentsMargins(20, 40, 20, 40)
+        # =================================================
+        # LEFT COLUMN: P2 Autonomous Log (The "Working" Side)
+        # =================================================
+        left_col = QVBoxLayout()
+        left_col.setSpacing(20)
+
+        # 1. P2 Working Avatar
+        self.p2_work_card = ModernCard(bg_color="transparent")
+        self.p2_work_card.setFixedHeight(200)
+        work_layout = QVBoxLayout(self.p2_work_card)
         
-        # 1. Status Indicator
-        status_container = QHBoxLayout()
-        self.status_dot = QLabel("●")
-        self.status_dot.setStyleSheet("color: #27ae60; font-size: 12px;")
-        status_text = QLabel("SYSTEM ONLINE")
-        status_text.setStyleSheet("color: #95a5a6; font-size: 10px; font-weight: bold; letter-spacing: 1px;")
-        status_container.addWidget(self.status_dot)
-        status_container.addWidget(status_text)
-        status_container.addStretch()
-        left_layout.addLayout(status_container)
+        self.work_anim_label = QLabel()
+        self.work_anim_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._play_animation(self.work_anim_label, "assets/p2_working.webp", default_text="⚙️ P2 Working")
+        work_layout.addWidget(self.work_anim_label)
+        left_col.addWidget(self.p2_work_card)
 
-        # 2. Character Stage
-        self.character_label = QLabel()
-        self.character_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.character_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        self.character_label.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.character_label.mousePressEvent = lambda event: self._on_character_clicked()
-        left_layout.addWidget(self.character_label, stretch=10)
+        # 2. Autonomous Activity Log
+        log_card = ModernCard()
+        log_layout = QVBoxLayout(log_card)
+        log_header = QLabel("AUTONOMOUS ACTIVITY")
+        log_header.setStyleSheet("font-size: 12px; font-weight: 700; color: #8E8E93; letter-spacing: 1px;")
+        log_layout.addWidget(log_header)
 
-        # 3. HUD Stats
+        self.auto_log_list = QListWidget()
+        self.auto_log_list.setFrameShape(QFrame.Shape.NoFrame)
+        self.auto_log_list.setStyleSheet("""
+            QListWidget { background: transparent; }
+            QListWidget::item { padding: 8px 0; border-bottom: 1px solid #F2F2F7; }
+        """)
+        log_layout.addWidget(self.auto_log_list)
+        left_col.addWidget(log_card, stretch=1)
+
+        # 3. HUD Stats & Budget (Moved here)
         stats_layout = QHBoxLayout()
         stats_layout.setSpacing(15)
-        stats_config = [
-            ("inventory", "📦", "Items", "#3498db"),
-            ("low_stock", "⚠️", "Low", "#e74c3c"),
-            ("pending", "🛒", "Cart", "#f39c12")
-        ]
-        stats_layout.addStretch()
-        for key, icon, label, color in stats_config:
-            pill = StatPill(icon, label, "-", color)
-            self.stat_widgets[key] = pill
-            stats_layout.addWidget(pill)
-        stats_layout.addStretch()
-        left_layout.addLayout(stats_layout)
         
-        # Add Left Panel with Stretch 1 (50% relative to total 2)
-        main_layout.addWidget(left_panel, stretch=1) 
+        # HUD Pills
+        self.stat_widgets["low_stock"] = StatPill("LOW STOCK", "0", "⚠️", "#FF3B30")
+        self.stat_widgets["cart"] = StatPill("IN CART", "0", "🛒", "#007AFF")
+        
+        stats_layout.addWidget(self.stat_widgets["low_stock"])
+        stats_layout.addWidget(self.stat_widgets["cart"])
+        left_col.addLayout(stats_layout)
 
-        # ==========================================================
-        # RIGHT PANEL: The Chat - 50% Width
-        # ==========================================================
-        right_panel = QWidget()
-        right_panel.setStyleSheet("background-color: #F5F7FA;")
+        # Budget Control
+        budget_card = ModernCard()
+        budget_layout = QHBoxLayout(budget_card)
         
-        # We use a VBox to split History (90%) and Input (10%)
-        right_layout = QVBoxLayout(right_panel)
-        right_layout.setContentsMargins(0, 0, 0, 0)
-        right_layout.setSpacing(0)
+        budget_icon = QLabel("💳")
+        budget_icon.setStyleSheet("font-size: 20px;")
         
-        # --- 1. Chat History Section (approx 90%) ---
+        info_layout = QVBoxLayout()
+        lbl_budget_title = QLabel("WEEKLY BUDGET")
+        lbl_budget_title.setStyleSheet("font-size: 10px; color: #8E8E93; font-weight: 700;")
+        self.lbl_budget_value = QLabel("$0.00")
+        self.lbl_budget_value.setStyleSheet("font-size: 18px; font-weight: 700; color: #1C1C1E;")
+        info_layout.addWidget(lbl_budget_title)
+        info_layout.addWidget(self.lbl_budget_value)
+        
+        btn_edit_budget = QPushButton("Edit")
+        btn_edit_budget.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_edit_budget.clicked.connect(self._edit_budget)
+        btn_edit_budget.setStyleSheet("""
+            QPushButton {
+                background-color: #E5E5EA; color: #007AFF; font-weight: 600;
+                border-radius: 12px; padding: 6px 12px; border: none;
+            }
+            QPushButton:hover { background-color: #D1D1D6; }
+        """)
+
+        budget_layout.addWidget(budget_icon)
+        budget_layout.addLayout(info_layout)
+        budget_layout.addStretch()
+        budget_layout.addWidget(btn_edit_budget)
+        
+        left_col.addWidget(budget_card)
+
+        # Add Left Column to Main
+        main_layout.addLayout(left_col, stretch=40)
+
+        # =================================================
+        # RIGHT COLUMN: Chat with P2 (The "Talking" Side)
+        # =================================================
+        right_col = QVBoxLayout()
+        right_col.setSpacing(20)
+
+        # 1. P2 Chat Avatar (Waist Up)
+        self.p2_chat_card = ModernCard(bg_color="transparent")
+        self.p2_chat_card.setFixedHeight(220)
+        chat_anim_layout = QVBoxLayout(self.p2_chat_card)
+        
+        self.chat_anim_label = QLabel()
+        self.chat_anim_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._play_animation(self.chat_anim_label, "assets/p2_idle.webp", default_text="🤖 P2 Ready")
+        chat_anim_layout.addWidget(self.chat_anim_label)
+        right_col.addWidget(self.p2_chat_card)
+
+        # 2. Chat Area
+        self.chat_area = ModernCard()
+        chat_layout_inner = QVBoxLayout(self.chat_area)
+        
         self.chat_scroll = QScrollArea()
         self.chat_scroll.setWidgetResizable(True)
         self.chat_scroll.setFrameShape(QFrame.Shape.NoFrame)
-        self.chat_scroll.setStyleSheet("""
-            QScrollArea { background: transparent; }
-            QScrollBar:vertical { width: 8px; background: transparent; }
-            QScrollBar::handle:vertical { background: #cbd5e0; border-radius: 4px; }
-        """)
+        self.chat_scroll.setStyleSheet("background: transparent;")
         
-        self.chat_container = QWidget()
-        self.chat_container.setStyleSheet("background: transparent;")
-        self.chat_layout = QVBoxLayout(self.chat_container)
-        self.chat_layout.setContentsMargins(20, 20, 20, 20)
-        self.chat_layout.setSpacing(15)
-        self.chat_layout.addStretch()
+        self.chat_content = QWidget()
+        self.chat_content_layout = QVBoxLayout(self.chat_content)
+        self.chat_content_layout.addStretch()
         
-        self.chat_scroll.setWidget(self.chat_container)
+        self.chat_scroll.setWidget(self.chat_content)
+        chat_layout_inner.addWidget(self.chat_scroll)
         
-        # Add scroll area with high stretch factor (e.g., 9 or 90)
-        right_layout.addWidget(self.chat_scroll, stretch=90)
-
-        # --- 2. Input Section (approx 10% - or minimal required space) ---
+        # Input Area
         input_container = QWidget()
-        input_container.setStyleSheet("background-color: #F5F7FA;") # Match background
-        input_layout = QHBoxLayout(input_container)
-        input_layout.setContentsMargins(20, 10, 20, 20)
-        input_layout.setAlignment(Qt.AlignmentFlag.AlignBottom) # Anchor to bottom
-
-        # Use our new AutoResizingTextEdit
-        self.input_field = AutoResizingTextEdit()
-        self.input_field.setPlaceholderText("Ask P3 about groceries, recipes...")
-
-        # Send Button
-        self.send_btn = QPushButton("➤")
-        self.send_btn.setFixedSize(45, 45) # Slightly smaller to match default input height
-        self.send_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.send_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #3498db;
-                color: white;
-                border-radius: 22px;
-                font-size: 18px;
-                font-weight: bold;
-                padding-bottom: 3px; 
+        input_row = QHBoxLayout(input_container)
+        input_row.setContentsMargins(0, 10, 0, 0)
+        
+        self.input_field = QTextEdit()
+        self.input_field.setPlaceholderText("Ask P2 anything...")
+        self.input_field.setFixedHeight(50)
+        self.input_field.setStyleSheet("""
+            QTextEdit {
+                background-color: #F2F2F7; border: none; border-radius: 20px;
+                padding: 10px 15px; font-size: 14px;
             }
-            QPushButton:hover { background-color: #2980b9; }
-            QPushButton:pressed { background-color: #21618c; transform: scale(0.95); }
         """)
-        self.send_btn.clicked.connect(self._send_message)
-
-        input_layout.addWidget(self.input_field)
-        input_layout.addWidget(self.send_btn)
         
-        # Add input container with lower stretch factor (e.g., 10)
-        # However, for input fields, it's often better to use stretch=0 
-        # so it only takes what it needs, and the chat history takes "the rest".
-        # But to strictly follow your request of "10% input section":
-        right_layout.addWidget(input_container, stretch=10)
+        self.btn_send = QPushButton("➤")
+        self.btn_send.setFixedSize(40, 40)
+        self.btn_send.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_send.clicked.connect(self._send_message)
+        self.btn_send.setStyleSheet("""
+            QPushButton {
+                background-color: #007AFF; color: white; border-radius: 20px;
+                font-size: 16px; font-weight: bold;
+            }
+            QPushButton:hover { background-color: #0062CC; }
+        """)
         
-        # Add Right Panel with Stretch 1 (50% relative to total 2)
-        main_layout.addWidget(right_panel, stretch=1)
-
-        # Initialize Default Animation
-        self._play_idle_animation()
-
-    # --- Animation Handling ---
-    
-    def _play_idle_animation(self):
-        """Play idle animation."""
-        self._play_animation("assets/p3_idle.webp")
-
-    def _play_wave_animation(self):
-        """Play waving animation."""
-        self._play_animation("assets/p3_wave.webp")
-        # Return to idle after approx duration of wave (e.g., 3 seconds)
-        QTimer.singleShot(3000, self._play_idle_animation)
-
-    def _play_thinking_animation(self):
-        """Play thinking animation."""
-        self._play_animation("assets/p3_thinking.webp")
-
-    def _play_animation(self, path_str: str):
-        """
-        Generic method to load and play animation on the character label
-        with enforced height consistency.
-        """
-        file_path = Path(path_str)
-        if not file_path.exists():
-            self.logger.warning(f"Animation file not found: {path_str}")
-            if self.character_label.movie() is None:
-                self.character_label.setText("🤖")
-            return
-
-        # 1. Check if we are already playing this file to avoid flickering
-        current_movie = self.character_label.movie()
-        if current_movie and current_movie.fileName() == str(file_path):
-            if current_movie.state() != QMovie.MovieState.Running:
-                current_movie.start()
-            return
-
-        # 2. Create the new movie
-        movie = QMovie(str(file_path))
-        movie.setCacheMode(QMovie.CacheMode.CacheAll)
+        input_row.addWidget(self.input_field)
+        input_row.addWidget(self.btn_send)
         
-        if movie.isValid():
-            # --- SCALING LOGIC START ---
-            # We enforce a specific height for the character animation
-            # Reduced size to keep dashboard compact
-            target_height = 250 
-            
-            # Jump to frame 0 to get the actual size of the video/gif
-            movie.jumpToFrame(0)
-            orig_size = movie.currentImage().size()
-            
-            if orig_size.isValid():
-                aspect_ratio = orig_size.width() / orig_size.height()
-                new_width = int(target_height * aspect_ratio)
-                movie.setScaledSize(QSize(new_width, target_height))
-            # --- SCALING LOGIC END ---
+        chat_layout_inner.addWidget(input_container)
+        
+        right_col.addWidget(self.chat_area, stretch=1)
+        
+        # Add Right Column to Main
+        main_layout.addLayout(right_col, stretch=60)
 
-            self.character_label.setMovie(movie)
+    # --- Logic ---
+
+    def _play_animation(self, label: QLabel, path_str: str, default_text=""):
+        path = Path(path_str)
+        if path.exists():
+            movie = QMovie(str(path))
+            movie.setCacheMode(QMovie.CacheMode.CacheAll)
+            # Scale
+            label.setMovie(movie)
             movie.start()
+            # Simple scaling to height
+            size = QSize(400, 200) # approximate
+            movie.setScaledSize(size)
         else:
-            self.logger.error(f"Invalid movie file: {path_str}")
-
-    def _on_character_clicked(self):
-        self._play_wave_animation()
-        self._add_message("Hi there! I'm P3, ready to help.", is_user=False)
-
-    # --- Chat Logic ---
-
-    def _send_message(self):
-        message = self.input_field.toPlainText().strip()
-        if not message:
-            return
-
-        if not self.llm_service:
-            QMessageBox.warning(self, "Not Ready", "P3 is initializing...")
-            return
-
-        self._add_message(message, is_user=True)
-        self.input_field.clear()
-        
-        # UI Feedback
-        self.input_field.setEnabled(False)
-        self.status_dot.setStyleSheet("color: #f39c12;") # Orange for thinking
-        self._play_thinking_animation()
-
-        # Threading
-        self.chat_worker = ChatWorker(self.llm_service, message)
-        self.chat_worker.response_ready.connect(self._handle_response)
-        self.chat_worker.error_occurred.connect(self._handle_error)
-        self.chat_worker.finished.connect(self._chat_finished)
-        self.chat_worker.start()
-
-    def _handle_response(self, agent_response: AgentResponse):
-        self._add_message(agent_response.response, is_user=False)
-
-    def _handle_error(self, error_msg: str):
-        self._add_message(f"⚠️ System Error: {error_msg}", is_user=False)
-
-    def _chat_finished(self):
-        self.input_field.setEnabled(True)
-        self.input_field.setFocus()
-        self.status_dot.setStyleSheet("color: #27ae60;") # Green for ready
-        self._play_idle_animation()
-
-    def _add_message(self, text: str, is_user: bool):
-        # Remove spacer
-        if self.chat_layout.count() > 0:
-            item = self.chat_layout.itemAt(self.chat_layout.count() - 1)
-            if item.spacerItem():
-                self.chat_layout.removeItem(item)
-
-        msg_widget = ModernChatMessage(text, is_user)
-        self.chat_layout.addWidget(msg_widget)
-        
-        # Add spacer back
-        self.chat_layout.addStretch()
-        
-        # Scroll to bottom
-        QTimer.singleShot(50, lambda: self.chat_scroll.verticalScrollBar().setValue(
-            self.chat_scroll.verticalScrollBar().maximum()
-        ))
-
-    # --- Backend & Initialization ---
-
-    def _initialize_llm(self):
-        try:
-            config = get_config_manager()
-            # ... (Keep your existing initialization logic exactly as is) ...
-            provider = config.get("llm.provider", "ollama")
-            
-            # Simplified for brevity in this snippet, ensure you copy your logic back
-            factory_args = {"provider": provider, "tool_executor": self.tool_executor}
-            if provider == "ollama":
-                factory_args["model_name"] = config.get("llm.ollama.model", "gemma:2b")
-            elif provider == "gemini":
-                 # Ensure you load API keys safely
-                 pass 
-
-            self.llm_service = create_llm_service(**factory_args)
-            self.logger.info("P3 Initialized")
-            
-        except Exception as e:
-            self.logger.error(f"Init Error: {e}")
-            self._add_message(f"System Initialization Failed: {e}", is_user=False)
+            label.setText(default_text)
+            label.setStyleSheet("font-size: 40px;")
 
     def _update_stats(self):
-        if not self.db_manager:
-            return
+        """Update HUD stats with accurate queries."""
+        if not self.db_manager: return
         
-        # Use a background thread for DB calls in production to prevent UI freeze
         try:
-            # 1. Inventory
-            res = self.db_manager.execute_query("SELECT COUNT(*) FROM inventory")
-            val = res[0][0] if res else 0
-            self.stat_widgets["inventory"].update_value(str(val))
+            # 1. Low Stock: Actual count based on min threshold
+            res = self.db_manager.execute_query(
+                "SELECT COUNT(*) FROM inventory WHERE quantity_current <= quantity_min"
+            )
+            low_count = res[0][0] if res else 0
+            self.stat_widgets["low_stock"].update_value(str(low_count))
 
-            # 2. Low Stock
-            res = self.db_manager.execute_query("SELECT COUNT(*) FROM inventory WHERE quantity_current <= quantity_min")
-            val = res[0][0] if res else 0
-            self.stat_widgets["low_stock"].update_value(str(val))
+            # 2. Cart: Count items inside JSON of Pending orders
+            # Schema: items is JSON string in 'orders' table
+            res = self.db_manager.execute_query(
+                "SELECT items FROM orders WHERE status = 'PENDING_APPROVAL'"
+            )
+            total_cart_items = 0
+            for row in res:
+                items_json = row['items']
+                try:
+                    items_list = json.loads(items_json)
+                    # Sum quantities of items in this order
+                    total_cart_items += len(items_list) # OR sum(i.get('quantity', 1) for i in items_list)
+                except:
+                    pass
+            self.stat_widgets["cart"].update_value(str(total_cart_items))
 
-            # 3. Pending
-            res = self.db_manager.execute_query("SELECT COUNT(*) FROM orders WHERE status = 'PENDING'")
-            val = res[0][0] if res else 0
-            self.stat_widgets["pending"].update_value(str(val))
+            # 3. Budget Update
+            prefs = self.db_manager.get_preferences()
+            weekly = prefs.get("spend_cap_weekly", 0.0)
+            self.lbl_budget_value.setText(f"${float(weekly):.2f}")
 
         except Exception as e:
             self.logger.error(f"Stats update error: {e}")
 
-    # --- Autonomous Agent Signal Handlers ---
+    def _edit_budget(self):
+        """Open dialog to edit weekly budget."""
+        current_text = self.lbl_budget_value.text().replace("$", "")
+        val, ok = QInputDialog.getDouble(self, "Set Budget", "Weekly Grocery Budget ($):", 
+                                       float(current_text), 0, 10000, 2)
+        if ok:
+            self.db_manager.set_preference("spend_cap_weekly", val)
+            self._update_stats()
+            # Log specific action
+            self._add_chat_message(f"System: Budget updated to ${val:.2f}", is_user=False)
 
-    def _on_agent_cycle_started(self, cycle_id: str):
-        """Called when autonomous agent starts a new cycle."""
-        self.logger.info(f"Agent cycle started: {cycle_id}")
-        self._add_message(f"[Agent] Starting autonomous maintenance cycle...", is_user=False)
-        self.status_dot.setStyleSheet("color: #f39c12;")  # Orange for active
+    # --- Chat Logic ---
 
-    def _on_agent_cycle_completed(self, cycle_id: str, summary: dict):
-        """Called when autonomous agent completes a cycle."""
-        status = summary.get('status', 'unknown')
-        self.logger.info(f"Agent cycle completed: {cycle_id} - Status: {status}")
+    def _send_message(self):
+        msg = self.input_field.toPlainText().strip()
+        if not msg: return
+        
+        self._add_chat_message(msg, is_user=True)
+        self.input_field.clear()
+        
+        # Change animation
+        self._play_animation(self.chat_anim_label, "assets/p2_thinking.webp", "🤔 Thinking...")
+        
+        self.chat_worker = ChatWorker(self.llm_service, msg)
+        self.chat_worker.response_ready.connect(self._on_response)
+        self.chat_worker.start()
 
-        if status == 'completed':
-            tool_calls = summary.get('tool_calls', 0)
-            response = summary.get('response', 'No actions taken')
-            self._add_message(f"[Agent] Cycle complete. {tool_calls} action(s) taken. {response}", is_user=False)
-        elif status == 'skipped':
-            reason = summary.get('reason', 'No action needed')
-            self.logger.debug(f"Agent cycle skipped: {reason}")
-            # Don't show skipped cycles in chat to reduce clutter
-        elif status == 'error':
-            error = summary.get('error', 'Unknown error')
-            self._add_message(f"[Agent] Cycle failed: {error}", is_user=False)
+    def _on_response(self, response: AgentResponse):
+        self._add_chat_message(response.response, is_user=False)
+        self._play_animation(self.chat_anim_label, "assets/p2_idle.webp", "🤖 P2 Ready")
 
-        self.status_dot.setStyleSheet("color: #27ae60;")  # Green for ready
-        self._update_stats()  # Refresh stats after agent actions
+    def _add_chat_message(self, text, is_user):
+        msg_widget = ChatMessage(text, is_user)
+        self.chat_content_layout.addWidget(msg_widget)
+        # Scroll to bottom
+        QTimer.singleShot(100, lambda: self.chat_scroll.verticalScrollBar().setValue(
+            self.chat_scroll.verticalScrollBar().maximum()
+        ))
 
-    def _on_agent_action(self, action_type: str, description: str):
-        """Called when autonomous agent takes an action."""
-        self.logger.info(f"Agent action: {action_type} - {description}")
-        self._add_message(f"[Agent] {description}", is_user=False)
+    # --- Autonomous Log Logic ---
+
+    def _log_auto_event(self, text, color="#1C1C1E"):
+        item = QListWidgetItem(text)
+        item.setForeground(QBrush(QColor(color)))
+        font = QFont("Segoe UI", 10)
+        item.setFont(font)
+        self.auto_log_list.addItem(item)
+        self.auto_log_list.scrollToBottom()
+
+    def _on_auto_started(self, cycle_id):
+        self._play_animation(self.work_anim_label, "assets/p2_working_active.webp", "⚡ Working...")
+        self._log_auto_event(f"▶ Cycle {cycle_id[:6]} started...", "#007AFF")
+
+    def _on_auto_action(self, action, desc):
+        self._log_auto_event(f"⚙ {action}: {desc}", "#34C759")
+
+    def _on_auto_completed(self, cycle_id, summary):
+        self._play_animation(self.work_anim_label, "assets/p2_working.webp", "⚙️ P2 Working")
+        status = summary.get('status', 'done')
+        color = "#8E8E93" if status == 'skipped' else "#34C759"
+        self._log_auto_event(f"◼ Cycle finished: {status}", color)
+
+    def _initialize_llm(self):
+        # ... (Keep existing initialization logic) ...
+        try:
+            config = get_config_manager()
+            provider = config.get("llm.provider", "ollama")
+            factory_args = {"provider": provider, "tool_executor": self.tool_executor}
+            if provider == "ollama":
+                factory_args["model_name"] = config.get("llm.ollama.model", "gemma:2b")
+            elif provider == "gemini":
+                 # Load key
+                 pass 
+            self.llm_service = create_llm_service(**factory_args)
+        except Exception as e:
+            self.logger.error(f"Init Error: {e}")
