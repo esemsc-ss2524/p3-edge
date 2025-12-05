@@ -20,6 +20,7 @@ from src.services.forecast_service import ForecastService
 from src.services.training_scheduler import TrainingScheduler
 from src.services.cart_service import CartService
 from src.services.autonomous_agent import AutonomousAgent
+from src.services.memory_service import MemoryService
 from src.vendors.amazon_client import AmazonClient
 from src.ui import MainWindow
 from src.utils import get_audit_logger, get_logger
@@ -64,6 +65,8 @@ from src.tools.utility_tools import (
     CheckBudgetTool,
     GetUserPreferencesTool,
     ConvertUnitTool,
+    LearnUserPreferenceTool,
+    GetLearnedPreferencesTool,
 )
 from src.tools.blocked_tools import (
     PlaceOrderTool,
@@ -87,6 +90,7 @@ class P3EdgeApplication:
         self.training_scheduler = None
         self.cart_service = None
         self.vendor_client = None
+        self.memory_service = None
         self.tool_executor = None
         self.autonomous_agent = None
         self.main_window = None
@@ -143,6 +147,10 @@ class P3EdgeApplication:
             self.vendor_client = AmazonClient()
             self.cart_service = CartService(self.db_manager)
             self.logger.info("Vendor client and cart service initialized")
+
+            # Initialize memory service
+            self.memory_service = MemoryService(self.db_manager, max_entries=1000)
+            self.logger.info("Memory service initialized")
 
             # Initialize tools for LLM agent
             self.tool_executor = self._initialize_tools()
@@ -229,6 +237,8 @@ class P3EdgeApplication:
         registry.register(CheckBudgetTool(self.db_manager))
         registry.register(GetUserPreferencesTool(self.db_manager))
         registry.register(ConvertUnitTool())
+        registry.register(LearnUserPreferenceTool(self.memory_service))
+        registry.register(GetLearnedPreferencesTool(self.memory_service))
 
         # Initialize and register blocked tools (for safety)
         self.logger.info("Registering blocked tools (safety guards)...")
@@ -267,12 +277,13 @@ class P3EdgeApplication:
             app.setApplicationName("P3-Edge")
             app.setOrganizationName("P3-Edge")
 
-            # Create and show main window with db_manager, tool_executor, cart_service, and autonomous_agent
+            # Create and show main window with db_manager, tool_executor, cart_service, autonomous_agent, and memory_service
             self.main_window = MainWindow(
                 db_manager=self.db_manager,
                 tool_executor=self.tool_executor,
                 cart_service=self.cart_service,
-                autonomous_agent=self.autonomous_agent
+                autonomous_agent=self.autonomous_agent,
+                memory_service=self.memory_service
             )
             self.main_window.show()
 
