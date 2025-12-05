@@ -219,9 +219,6 @@ class P3Dashboard(QWidget):
         self.stat_widgets = {}
         self.last_message_date = None  # Track last message date for separators
 
-        # Initialize chat messages table
-        self._init_chat_table()
-
         self._setup_ui()
         self._initialize_llm()
         self._update_stats()
@@ -446,30 +443,6 @@ class P3Dashboard(QWidget):
 
     # --- Chat History Management ---
 
-    def _init_chat_table(self):
-        """Initialize chat messages table in database."""
-        if not self.db_manager:
-            return
-
-        try:
-            conn = self.db_manager.get_connection()
-            cursor = conn.cursor()
-
-            # Create chat_messages table if it doesn't exist
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS chat_messages (
-                    message_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    message TEXT NOT NULL,
-                    is_user INTEGER NOT NULL,
-                    timestamp TEXT NOT NULL,
-                    session_date TEXT
-                )
-            """)
-            conn.commit()
-            self.logger.info("Chat messages table initialized")
-        except Exception as e:
-            self.logger.error(f"Failed to initialize chat table: {e}")
-
     def _load_chat_history(self):
         """Load previous chat messages from database."""
         if not self.db_manager:
@@ -482,20 +455,19 @@ class P3Dashboard(QWidget):
             seven_days_ago = (datetime.now() - timedelta(days=7)).isoformat()
 
             query = """
-                SELECT message, is_user, timestamp
-                FROM chat_messages
+                SELECT role, message, timestamp
+                FROM conversations
                 WHERE timestamp >= ?
                 ORDER BY timestamp ASC
             """
             results = self.db_manager.execute_query(query, (seven_days_ago,))
 
             if results:
-                # Group messages by date and add them
-                for message, is_user, timestamp in results:
+                # Load messages with date separators
+                for role, message, timestamp in results:
+                    is_user = (role == 'user')
                     msg_datetime = datetime.fromisoformat(timestamp)
-                    self._add_message(message, bool(is_user), msg_datetime, save_to_db=False)
-
-                # Date separators are automatically added by _add_message
+                    self._add_message(message, is_user, msg_datetime, save_to_db=False)
 
         except Exception as e:
             self.logger.error(f"Failed to load chat history: {e}")
@@ -507,20 +479,23 @@ class P3Dashboard(QWidget):
 
         try:
             from datetime import datetime
+            import uuid
+
             if isinstance(timestamp, datetime):
                 timestamp_str = timestamp.isoformat()
-                session_date = timestamp.date().isoformat()
             else:
                 timestamp_str = datetime.now().isoformat()
-                session_date = datetime.now().date().isoformat()
+
+            # Determine role
+            role = 'user' if is_user else 'assistant'
 
             conn = self.db_manager.get_connection()
             cursor = conn.cursor()
 
             cursor.execute("""
-                INSERT INTO chat_messages (message, is_user, timestamp, session_date)
+                INSERT INTO conversations (conversation_id, role, message, timestamp)
                 VALUES (?, ?, ?, ?)
-            """, (message, int(is_user), timestamp_str, session_date))
+            """, (str(uuid.uuid4()), role, message, timestamp_str))
 
             conn.commit()
         except Exception as e:
