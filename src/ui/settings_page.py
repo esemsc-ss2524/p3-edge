@@ -300,31 +300,33 @@ class BudgetSettingsWidget(QWidget):
                     budget_key = "spend_cap_monthly"
                     budget_value = budget_value / 3
 
-            # Use execute_query for inserts with commit
-            conn = self.db_manager.get_connection()
-            cursor = conn.cursor()
+            # FIX: Use 'with' statement to handle the context manager correctly
+            with self.db_manager.get_connection() as conn:
+                cursor = conn.cursor()
 
-            # Save budget preference
-            cursor.execute(
-                """
-                INSERT INTO preferences (key, value)
-                VALUES (?, ?)
-                ON CONFLICT(key) DO UPDATE SET value = excluded.value
-                """,
-                (budget_key, str(budget_value))
-            )
+                # Save budget preference
+                cursor.execute(
+                    """
+                    INSERT INTO preferences (key, value)
+                    VALUES (?, ?)
+                    ON CONFLICT(key) DO UPDATE SET value = excluded.value
+                    """,
+                    (budget_key, str(budget_value))
+                )
 
-            # Save alert threshold
-            cursor.execute(
-                """
-                INSERT INTO preferences (key, value)
-                VALUES (?, ?)
-                ON CONFLICT(key) DO UPDATE SET value = excluded.value
-                """,
-                ("budget_alert_threshold", str(self.alert_threshold.value()))
-            )
-
-            conn.commit()
+                # Save alert threshold
+                cursor.execute(
+                    """
+                    INSERT INTO preferences (key, value)
+                    VALUES (?, ?)
+                    ON CONFLICT(key) DO UPDATE SET value = excluded.value
+                    """,
+                    ("budget_alert_threshold", str(self.alert_threshold.value()))
+                )
+                
+                # Note: conn.commit() is handled automatically by the 
+                # context manager in your DatabaseManager implementation, 
+                # but explicit commit here is harmless if you want to be sure.
 
             QMessageBox.information(
                 self,
