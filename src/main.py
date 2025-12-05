@@ -50,7 +50,7 @@ from src.tools.training_tools import (
 )
 from src.tools.vendor_tools import (
     SearchProductsTool,
-    BatchSearchProductsTool,
+    # BatchSearchProductsTool,
     GetProductDetailsTool,
     CheckProductAvailabilityTool,
     AddToCartTool,
@@ -214,7 +214,7 @@ class P3EdgeApplication:
         # Initialize and register vendor tools
         self.logger.info("Registering vendor and cart tools...")
         registry.register(SearchProductsTool(self.vendor_client))
-        registry.register(BatchSearchProductsTool(self.vendor_client))
+        # registry.register(BatchSearchProductsTool(self.vendor_client))
         registry.register(GetProductDetailsTool(self.vendor_client))
         registry.register(CheckProductAvailabilityTool(self.vendor_client))
         registry.register(AddToCartTool(self.cart_service, self.vendor_client))
