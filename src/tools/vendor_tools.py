@@ -103,6 +103,99 @@ class SearchProductsTool(BaseTool):
         }
 
 
+class BatchSearchProductsTool(BaseTool):
+    """Search for multiple products at once on vendor."""
+
+    def __init__(self, vendor_client: VendorClient):
+        self.vendor_client = vendor_client
+
+    @property
+    def name(self) -> str:
+        return "batch_search_products"
+
+    @property
+    def description(self) -> str:
+        return "Search for multiple products at once by providing a list of item names. More efficient than multiple individual searches."
+
+    @property
+    def category(self) -> ToolCategory:
+        return ToolCategory.VENDOR
+
+    @property
+    def parameters(self) -> List[ToolParameter]:
+        return [
+            ToolParameter(
+                name="queries",
+                type=ToolParameterType.ARRAY,
+                description="List of search queries/item names (e.g., ['milk', 'eggs', 'bread'])",
+                required=True,
+            ),
+            ToolParameter(
+                name="category",
+                type=ToolParameterType.STRING,
+                description="Product category to filter by (optional)",
+                required=False,
+            ),
+            ToolParameter(
+                name="max_results",
+                type=ToolParameterType.INTEGER,
+                description="Maximum number of results per query (default: 3)",
+                required=False,
+                default=3,
+            ),
+        ]
+
+    @property
+    def returns(self) -> str:
+        return "Dictionary mapping each query to its search results, with products containing names, product_ids, prices, ratings, availability, etc."
+
+    @property
+    def examples(self) -> Optional[List[str]]:
+        return [
+            "batch_search_products(queries=['milk', 'eggs', 'bread'], max_results=3)",
+            "batch_search_products(queries=['organic milk', 'whole wheat bread', 'greek yogurt'])",
+        ]
+
+    def execute(
+        self, queries: List[str], category: Optional[str] = None, max_results: int = 3
+    ) -> Dict[str, Any]:
+        """Execute batch search."""
+        batch_result = self.vendor_client.batch_search_products(
+            queries=queries, category=category, max_results=max_results
+        )
+
+        # Format results as a dictionary mapping query -> products
+        results_by_query = {}
+        for search_result in batch_result.results:
+            products = []
+            for product in search_result.products:
+                products.append(
+                    {
+                        "product_id": product.product_id,
+                        "name": product.name,
+                        "brand": product.brand,
+                        "price": product.price,
+                        "unit": product.unit,
+                        "rating": product.rating,
+                        "reviews_count": product.reviews_count,
+                        "in_stock": product.in_stock,
+                        "prime_eligible": product.prime_eligible,
+                        "category": product.category,
+                    }
+                )
+
+            results_by_query[search_result.query] = {
+                "total_results": search_result.total_results,
+                "products": products,
+            }
+
+        return {
+            "vendor": batch_result.vendor,
+            "total_queries": batch_result.total_queries,
+            "results": results_by_query,
+        }
+
+
 class GetProductDetailsTool(BaseTool):
     """Get detailed information about a specific product."""
 

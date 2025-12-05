@@ -55,6 +55,15 @@ class SearchResult(BaseModel):
     vendor: str = Field(..., description="Vendor name")
 
 
+class BatchSearchResult(BaseModel):
+    """Batch search results from vendor."""
+
+    queries: List[str] = Field(..., description="List of search queries")
+    results: List[SearchResult] = Field(default_factory=list, description="Search results for each query")
+    vendor: str = Field(..., description="Vendor name")
+    total_queries: int = Field(default=0, ge=0, description="Total number of queries processed")
+
+
 class CartItem(BaseModel):
     """Item in shopping cart."""
 
