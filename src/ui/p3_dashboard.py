@@ -454,13 +454,16 @@ class P3Dashboard(QWidget):
             # Load messages from the last 7 days
             seven_days_ago = (datetime.now() - timedelta(days=7)).isoformat()
 
-            query = """
-                SELECT role, message, timestamp
-                FROM conversations
-                WHERE timestamp >= ?
-                ORDER BY timestamp ASC
-            """
-            results = self.db_manager.execute_query(query, (seven_days_ago,))
+            with self.db_manager.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT role, message, timestamp
+                    FROM conversations
+                    WHERE timestamp >= ?
+                    ORDER BY timestamp ASC
+                """, (seven_days_ago,))
+
+                results = cursor.fetchall()
 
             if results:
                 # Load messages with date separators
@@ -489,15 +492,13 @@ class P3Dashboard(QWidget):
             # Determine role
             role = 'user' if is_user else 'assistant'
 
-            conn = self.db_manager.get_connection()
-            cursor = conn.cursor()
+            with self.db_manager.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    INSERT INTO conversations (conversation_id, role, message, timestamp)
+                    VALUES (?, ?, ?, ?)
+                """, (str(uuid.uuid4()), role, message, timestamp_str))
 
-            cursor.execute("""
-                INSERT INTO conversations (conversation_id, role, message, timestamp)
-                VALUES (?, ?, ?, ?)
-            """, (str(uuid.uuid4()), role, message, timestamp_str))
-
-            conn.commit()
         except Exception as e:
             self.logger.error(f"Failed to save message to database: {e}")
 
