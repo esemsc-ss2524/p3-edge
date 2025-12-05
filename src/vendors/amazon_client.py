@@ -12,161 +12,58 @@ For real implementation, you would need:
 """
 
 import uuid
+import csv
+import os
 from typing import List, Optional, Dict, Any
 from datetime import datetime
+from pathlib import Path
 
 from ..utils import get_logger
 from .base import VendorClient
 from .models import VendorProduct, SearchResult, ShoppingCart, CartItem, OrderStatus
 
 
-# Simulated product database for MVP
-SIMULATED_PRODUCTS = {
-    "milk": [
-        {
-            "product_id": "B08X6C9RMF",
-            "name": "Organic Valley Organic Whole Milk, 1 Gallon",
-            "brand": "Organic Valley",
-            "category": "Dairy",
-            "price": 5.99,
-            "unit": "gallon",
-            "rating": 4.6,
-            "reviews_count": 2847,
-            "prime_eligible": True,
-            "in_stock": True
-        },
-        {
-            "product_id": "B07Y5C8RNF",
-            "name": "Horizon Organic Whole Milk, 1 Gallon",
-            "brand": "Horizon",
-            "category": "Dairy",
-            "price": 6.49,
-            "unit": "gallon",
-            "rating": 4.7,
-            "reviews_count": 3521,
-            "prime_eligible": True,
-            "in_stock": True
-        },
-        {
-            "product_id": "B06X7D4RQF",
-            "name": "Lactaid Whole Milk, 1 Gallon",
-            "brand": "Lactaid",
-            "category": "Dairy",
-            "price": 6.99,
-            "unit": "gallon",
-            "rating": 4.5,
-            "reviews_count": 1892,
-            "prime_eligible": True,
-            "in_stock": True
-        }
-    ],
-    "bread": [
-        {
-            "product_id": "B09K7Y3WHP",
-            "name": "Dave's Killer Bread Organic Whole Wheat, 27oz",
-            "brand": "Dave's Killer Bread",
-            "category": "Bakery",
-            "price": 5.49,
-            "unit": "loaf",
-            "rating": 4.8,
-            "reviews_count": 4231,
-            "prime_eligible": False,
-            "in_stock": True
-        },
-        {
-            "product_id": "B08M5X9WHP",
-            "name": "Arnold Whole Wheat Bread, 24oz",
-            "brand": "Arnold",
-            "category": "Bakery",
-            "price": 3.99,
-            "unit": "loaf",
-            "rating": 4.4,
-            "reviews_count": 1234,
-            "prime_eligible": True,
-            "in_stock": True
-        }
-    ],
-    "eggs": [
-        {
-            "product_id": "B07N9G8RTF",
-            "name": "Happy Egg Co. Organic Free Range Eggs, 12 Count",
-            "brand": "Happy Egg Co.",
-            "category": "Dairy",
-            "price": 4.99,
-            "unit": "dozen",
-            "rating": 4.7,
-            "reviews_count": 2103,
-            "prime_eligible": True,
-            "in_stock": True
-        },
-        {
-            "product_id": "B08R8G3RTF",
-            "name": "Eggland's Best Large Eggs, 18 Count",
-            "brand": "Eggland's Best",
-            "category": "Dairy",
-            "price": 5.49,
-            "unit": "18 count",
-            "rating": 4.6,
-            "reviews_count": 3847,
-            "prime_eligible": True,
-            "in_stock": True
-        }
-    ],
-    "chicken": [
-        {
-            "product_id": "B09T7K2MNP",
-            "name": "Perdue Harvestland Organic Chicken Breast, 2 lb",
-            "brand": "Perdue",
-            "category": "Meat",
-            "price": 12.99,
-            "unit": "2 lb",
-            "rating": 4.5,
-            "reviews_count": 892,
-            "prime_eligible": False,
-            "in_stock": True
-        }
-    ],
-    "bananas": [
-        {
-            "product_id": "B0FRESH001",
-            "name": "Fresh Bananas, 3 lb",
-            "brand": "Fresh",
-            "category": "Produce",
-            "price": 1.99,
-            "unit": "3 lb",
-            "rating": 4.3,
-            "reviews_count": 5621,
-            "prime_eligible": True,
-            "in_stock": True
-        }
-    ],
-    "pasta": [
-        {
-            "product_id": "B08Y7M4KLP",
-            "name": "Barilla Penne Pasta, 16 oz",
-            "brand": "Barilla",
-            "category": "Pantry",
-            "price": 1.99,
-            "unit": "16 oz",
-            "rating": 4.7,
-            "reviews_count": 8921,
-            "prime_eligible": True,
-            "in_stock": True
-        },
-        {
-            "product_id": "B07X8M2KLP",
-            "name": "De Cecco Penne Rigate Pasta, 16 oz",
-            "brand": "De Cecco",
-            "category": "Pantry",
-            "price": 2.49,
-            "unit": "16 oz",
-            "rating": 4.8,
-            "reviews_count": 3456,
-            "prime_eligible": True,
-            "in_stock": True
-        }
-    ]
-}
+def load_products_from_csv(csv_path: str) -> List[Dict[str, Any]]:
+    """
+    Load products from a CSV file.
+
+    Args:
+        csv_path: Path to the CSV file
+
+    Returns:
+        List of product dictionaries
+    """
+    products = []
+
+    if not os.path.exists(csv_path):
+        logger = get_logger("amazon_client")
+        logger.warning(f"CSV file not found: {csv_path}")
+        return products
+
+    with open(csv_path, 'r', encoding='utf-8') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            # Convert data types
+            product = {
+                "product_id": row["product_id"],
+                "name": row["name"],
+                "brand": row["brand"],
+                "category": row["category"],
+                "price": float(row["price"]),
+                "unit": row["unit"],
+                "rating": float(row["rating"]),
+                "reviews_count": int(row["reviews_count"]),
+                "prime_eligible": row["prime_eligible"].lower() == "true",
+                "in_stock": row["in_stock"].lower() == "true"
+            }
+            products.append(product)
+
+    return products
+
+
+# Load products from CSV file
+CSV_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'amazon_grocery_items.csv')
+SIMULATED_PRODUCTS = load_products_from_csv(CSV_PATH)
 
 
 class AmazonClient(VendorClient):
@@ -209,33 +106,54 @@ class AmazonClient(VendorClient):
 
         # Normalize query
         query_lower = query.lower()
+        query_terms = query_lower.split()
 
         # Find matching products
         found_products = []
+        scored_matches = []
 
-        # Search in our simulated database
-        for key, products in SIMULATED_PRODUCTS.items():
-            if key in query_lower or any(key in query_lower.split() for key in query_lower.split()):
-                for product_data in products:
-                    vendor_product = VendorProduct(
-                        vendor=self.vendor_name,
-                        **product_data
-                    )
-                    found_products.append(vendor_product)
+        # Search through all products
+        for product_data in SIMULATED_PRODUCTS:
+            # Apply category filter if provided
+            if category and product_data["category"].lower() != category.lower():
+                continue
 
-        # If no exact matches, search in product names
-        if not found_products:
-            for products in SIMULATED_PRODUCTS.values():
-                for product_data in products:
-                    if query_lower in product_data["name"].lower():
-                        vendor_product = VendorProduct(
-                            vendor=self.vendor_name,
-                            **product_data
-                        )
-                        found_products.append(vendor_product)
+            # Calculate match score
+            score = 0
+            searchable_text = f"{product_data['name']} {product_data['brand']} {product_data['category']}".lower()
 
-        # Limit results
-        found_products = found_products[:int(max_results)]
+            # Exact phrase match in name (highest priority)
+            if query_lower in product_data["name"].lower():
+                score += 100
+
+            # Exact phrase match in brand
+            if query_lower in product_data["brand"].lower():
+                score += 50
+
+            # Exact phrase match in category
+            if query_lower in product_data["category"].lower():
+                score += 30
+
+            # Individual term matches
+            for term in query_terms:
+                if len(term) >= 2:  # Skip very short terms
+                    if term in product_data["name"].lower():
+                        score += 20
+                    if term in product_data["brand"].lower():
+                        score += 10
+                    if term in product_data["category"].lower():
+                        score += 5
+
+            # If we have any match, add to results
+            if score > 0:
+                scored_matches.append((score, product_data))
+
+        # Sort by score (descending) and limit results
+        scored_matches.sort(key=lambda x: x[0], reverse=True)
+        found_products = [
+            VendorProduct(vendor=self.vendor_name, **product_data)
+            for score, product_data in scored_matches[:int(max_results)]
+        ]
 
         self.logger.info(f"Found {len(found_products)} products")
 
@@ -259,13 +177,12 @@ class AmazonClient(VendorClient):
         self.logger.info(f"Getting product details for: {product_id}")
 
         # Search all products
-        for products in SIMULATED_PRODUCTS.values():
-            for product_data in products:
-                if product_data["product_id"] == product_id:
-                    return VendorProduct(
-                        vendor=self.vendor_name,
-                        **product_data
-                    )
+        for product_data in SIMULATED_PRODUCTS:
+            if product_data["product_id"] == product_id:
+                return VendorProduct(
+                    vendor=self.vendor_name,
+                    **product_data
+                )
 
         self.logger.warning(f"Product not found: {product_id}")
         return None
