@@ -120,10 +120,6 @@ class CartPage(QWidget):
         cart_tab = self._create_cart_tab()
         self.tabs.addTab(cart_tab, "My Cart")
 
-        # Orders Tab
-        orders_tab = self._create_orders_tab()
-        self.tabs.addTab(orders_tab, "Orders")
-
         layout.addWidget(self.tabs)
 
     def _create_search_tab(self) -> QWidget:
@@ -327,59 +323,6 @@ class CartPage(QWidget):
         action_layout.addWidget(self.checkout_btn)
 
         layout.addLayout(action_layout)
-
-        return widget
-
-    def _create_orders_tab(self) -> QWidget:
-        """Create orders tab."""
-        widget = QWidget()
-        layout = QVBoxLayout(widget)
-        layout.setContentsMargins(15, 15, 15, 15)
-
-        # Refresh button
-        refresh_layout = QHBoxLayout()
-        refresh_layout.addStretch()
-
-        refresh_btn = QPushButton("🔄 Refresh")
-        refresh_btn.clicked.connect(self._refresh_orders)
-        refresh_layout.addWidget(refresh_btn)
-
-        layout.addLayout(refresh_layout)
-
-        # Orders table
-        self.orders_table = QTableWidget()
-        self.orders_table.setColumnCount(6)
-        self.orders_table.setHorizontalHeaderLabels([
-            "Order ID", "Vendor", "Total", "Status", "Date", "Action"
-        ])
-        self.orders_table.setStyleSheet("""
-            QTableWidget {
-                border: 1px solid #bdc3c7;
-                border-radius: 5px;
-                gridline-color: #ecf0f1;
-            }
-            QTableWidget::item {
-                padding: 10px;
-            }
-            QHeaderView::section {
-                background-color: #ecf0f1;
-                padding: 10px;
-                border: none;
-                font-weight: bold;
-            }
-        """)
-        self.orders_table.horizontalHeader().setStretchLastSection(False)
-        self.orders_table.setColumnWidth(0, 150)
-        self.orders_table.setColumnWidth(1, 100)
-        self.orders_table.setColumnWidth(2, 100)
-        self.orders_table.setColumnWidth(3, 150)
-        self.orders_table.setColumnWidth(4, 150)
-        self.orders_table.setColumnWidth(5, 120)
-
-        layout.addWidget(self.orders_table, stretch=1)
-
-        # Load orders
-        self._refresh_orders()
 
         return widget
 
@@ -623,104 +566,12 @@ class CartPage(QWidget):
             # Clear cart and refresh
             self.cart_service.clear_cart("amazon")
             self._refresh_cart()
-            self._refresh_orders()
-
-            # Switch to orders tab
-            self.tabs.setCurrentIndex(2)
 
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to create order:\n{e}")
-
-    def _refresh_orders(self):
-        """Refresh orders display."""
-        if not self.cart_service:
-            return
-
-        orders = self.cart_service.get_order_history(limit=50)
-
-        self.orders_table.setRowCount(len(orders))
-
-        for row, order in enumerate(orders):
-            # Order ID
-            id_item = QTableWidgetItem(order.order_id[:16] + "...")
-            self.orders_table.setItem(row, 0, id_item)
-
-            # Vendor
-            vendor_item = QTableWidgetItem(order.vendor.title())
-            self.orders_table.setItem(row, 1, vendor_item)
-
-            # Total
-            total_item = QTableWidgetItem(f"${order.total_cost:.2f}")
-            self.orders_table.setItem(row, 2, total_item)
-
-            # Status
-            status_item = QTableWidgetItem(order.status.replace("_", " ").title())
-            self.orders_table.setItem(row, 3, status_item)
-
-            # Date
-            date_str = order.created_at.strftime("%Y-%m-%d %H:%M") if order.created_at else "N/A"
-            date_item = QTableWidgetItem(date_str)
-            self.orders_table.setItem(row, 4, date_item)
-
-            # Action button
-            if order.status == "pending_approval":
-                approve_btn = QPushButton("Approve & Place")
-                approve_btn.setStyleSheet("""
-                    QPushButton {
-                        background-color: #27ae60;
-                        color: white;
-                        padding: 5px 10px;
-                        border: none;
-                        border-radius: 3px;
-                    }
-                    QPushButton:hover {
-                        background-color: #229954;
-                    }
-                """)
-                approve_btn.clicked.connect(lambda checked, oid=order.order_id: self._approve_order(oid))
-                self.orders_table.setCellWidget(row, 5, approve_btn)
-            else:
-                status_label = QLabel(order.status.replace("_", " ").title())
-                status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                self.orders_table.setCellWidget(row, 5, status_label)
-
-    def _approve_order(self, order_id: str):
-        """Approve and place an order."""
-        reply = QMessageBox.question(
-            self,
-            "Approve Order",
-            "Approve this order and place it with Amazon?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-        )
-
-        if reply == QMessageBox.StandardButton.Yes:
-            try:
-                # Approve order
-                self.cart_service.approve_order(order_id)
-
-                # Place order
-                result = self.cart_service.place_order(
-                    order_id,
-                    self.amazon_client,
-                    shipping_address=None,  # Would be from user preferences
-                    payment_method=None  # Would be from user preferences
-                )
-
-                QMessageBox.information(
-                    self,
-                    "Order Placed",
-                    f"Order placed successfully!\n\nVendor Order ID: {result.get('order_id', 'N/A')}"
-                )
-
-                # Refresh orders
-                self._refresh_orders()
-
-            except Exception as e:
-                QMessageBox.critical(self, "Error", f"Failed to place order:\n{e}")
 
     def showEvent(self, event):
         """Handle show event."""
         super().showEvent(event)
         # Refresh cart when page is shown
         self._refresh_cart()
-        self._refresh_orders()
