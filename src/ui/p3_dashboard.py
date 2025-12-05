@@ -217,10 +217,15 @@ class P3Dashboard(QWidget):
 
         # UI State
         self.stat_widgets = {}
+        self.last_message_date = None  # Track last message date for separators
+
+        # Initialize chat messages table
+        self._init_chat_table()
 
         self._setup_ui()
         self._initialize_llm()
         self._update_stats()
+        self._load_chat_history()  # Load previous messages
 
         # Connect to autonomous agent signals if available
         if self.autonomous_agent:
@@ -439,6 +444,88 @@ class P3Dashboard(QWidget):
             self.activity_scroll.verticalScrollBar().maximum()
         ))
 
+    # --- Chat History Management ---
+
+    def _init_chat_table(self):
+        """Initialize chat messages table in database."""
+        if not self.db_manager:
+            return
+
+        try:
+            conn = self.db_manager.get_connection()
+            cursor = conn.cursor()
+
+            # Create chat_messages table if it doesn't exist
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS chat_messages (
+                    message_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    message TEXT NOT NULL,
+                    is_user INTEGER NOT NULL,
+                    timestamp TEXT NOT NULL,
+                    session_date TEXT
+                )
+            """)
+            conn.commit()
+            self.logger.info("Chat messages table initialized")
+        except Exception as e:
+            self.logger.error(f"Failed to initialize chat table: {e}")
+
+    def _load_chat_history(self):
+        """Load previous chat messages from database."""
+        if not self.db_manager:
+            return
+
+        try:
+            from datetime import datetime, timedelta
+
+            # Load messages from the last 7 days
+            seven_days_ago = (datetime.now() - timedelta(days=7)).isoformat()
+
+            query = """
+                SELECT message, is_user, timestamp
+                FROM chat_messages
+                WHERE timestamp >= ?
+                ORDER BY timestamp ASC
+            """
+            results = self.db_manager.execute_query(query, (seven_days_ago,))
+
+            if results:
+                # Group messages by date and add them
+                for message, is_user, timestamp in results:
+                    msg_datetime = datetime.fromisoformat(timestamp)
+                    self._add_message(message, bool(is_user), msg_datetime, save_to_db=False)
+
+                # Date separators are automatically added by _add_message
+
+        except Exception as e:
+            self.logger.error(f"Failed to load chat history: {e}")
+
+    def _save_message_to_db(self, message: str, is_user: bool, timestamp):
+        """Save a message to the database."""
+        if not self.db_manager:
+            return
+
+        try:
+            from datetime import datetime
+            if isinstance(timestamp, datetime):
+                timestamp_str = timestamp.isoformat()
+                session_date = timestamp.date().isoformat()
+            else:
+                timestamp_str = datetime.now().isoformat()
+                session_date = datetime.now().date().isoformat()
+
+            conn = self.db_manager.get_connection()
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                INSERT INTO chat_messages (message, is_user, timestamp, session_date)
+                VALUES (?, ?, ?, ?)
+            """, (message, int(is_user), timestamp_str, session_date))
+
+            conn.commit()
+        except Exception as e:
+            self.logger.error(f"Failed to save message to database: {e}")
+
     # --- Chat Logic ---
 
     def _send_message(self):
@@ -450,7 +537,8 @@ class P3Dashboard(QWidget):
             QMessageBox.warning(self, "Not Ready", "P3 is initializing...")
             return
 
-        self._add_message(message, is_user=True)
+        from datetime import datetime
+        self._add_message(message, is_user=True, timestamp=datetime.now())
         self.input_field.clear()
 
         # UI Feedback
@@ -465,17 +553,32 @@ class P3Dashboard(QWidget):
         self.chat_worker.start()
 
     def _handle_response(self, agent_response: AgentResponse):
-        self._add_message(agent_response.response, is_user=False)
+        from datetime import datetime
+        self._add_message(agent_response.response, is_user=False, timestamp=datetime.now())
 
     def _handle_error(self, error_msg: str):
-        self._add_message(f"⚠️ Error: {error_msg}", is_user=False)
+        from datetime import datetime
+        self._add_message(f"⚠️ Error: {error_msg}", is_user=False, timestamp=datetime.now())
 
     def _chat_finished(self):
         self.input_field.setEnabled(True)
         self.input_field.setFocus()
         self.status_dot.setStyleSheet("color: #27ae60;")  # Green for ready
 
-    def _add_message(self, text: str, is_user: bool):
+    def _add_message(self, text: str, is_user: bool, timestamp=None, save_to_db: bool = True):
+        from datetime import datetime
+
+        if timestamp is None:
+            timestamp = datetime.now()
+
+        # Check if we need to add a date separator
+        message_date = timestamp.date() if isinstance(timestamp, datetime) else datetime.fromisoformat(timestamp).date()
+
+        if self.last_message_date is None or self.last_message_date != message_date:
+            # Different day, add date separator
+            self._add_date_separator_for_date(message_date)
+            self.last_message_date = message_date
+
         # Remove spacer
         if self.chat_layout.count() > 0:
             item = self.chat_layout.itemAt(self.chat_layout.count() - 1)
@@ -484,14 +587,56 @@ class P3Dashboard(QWidget):
 
         msg_widget = ModernChatMessage(text, is_user)
         self.chat_layout.addWidget(msg_widget)
-        
+
         # Add spacer back
         self.chat_layout.addStretch()
-        
+
+        # Save to database if requested
+        if save_to_db:
+            self._save_message_to_db(text, is_user, timestamp)
+
         # Scroll to bottom
         QTimer.singleShot(50, lambda: self.chat_scroll.verticalScrollBar().setValue(
             self.chat_scroll.verticalScrollBar().maximum()
         ))
+
+    def _add_date_separator_for_date(self, date):
+        """Add a date separator for a specific date."""
+        from datetime import datetime
+
+        # Remove spacer
+        if self.chat_layout.count() > 0:
+            item = self.chat_layout.itemAt(self.chat_layout.count() - 1)
+            if item.spacerItem():
+                self.chat_layout.removeItem(item)
+
+        # Create separator
+        separator = QLabel()
+        today = datetime.now().date()
+
+        # Determine separator text
+        if date == today:
+            separator_text = f"Today, {datetime.now().strftime('%B %d')}"
+        elif (today - date).days == 1:
+            separator_text = f"Yesterday, {date.strftime('%B %d')}"
+        else:
+            separator_text = date.strftime("%B %d, %Y")
+
+        separator.setText(separator_text)
+        separator.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        separator.setStyleSheet("""
+            QLabel {
+                color: #95a5a6;
+                font-size: 11px;
+                padding: 8px 15px;
+                background-color: #E9E9EB;
+                border-radius: 10px;
+                margin: 15px 100px;
+            }
+        """)
+
+        self.chat_layout.addWidget(separator)
+        self.chat_layout.addStretch()
 
     # --- Backend & Initialization ---
 
