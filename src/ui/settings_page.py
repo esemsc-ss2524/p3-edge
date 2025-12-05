@@ -122,6 +122,9 @@ class BudgetSettingsWidget(QWidget):
         """)
         budget_layout.addRow("Budget Period:", self.budget_period)
 
+        # Connect period change to reload settings
+        self.budget_period.currentTextChanged.connect(self._on_period_changed)
+
         # Alert Threshold
         self.alert_threshold = QDoubleSpinBox()
         self.alert_threshold.setSuffix(" %")
@@ -183,10 +186,10 @@ class BudgetSettingsWidget(QWidget):
         button_layout = QHBoxLayout()
         button_layout.addStretch()
 
-        reset_btn = QPushButton("Reset Period")
-        reset_btn.setStyleSheet("""
+        view_period_btn = QPushButton("View Period Details")
+        view_period_btn.setStyleSheet("""
             QPushButton {
-                background-color: #e74c3c;
+                background-color: #3498db;
                 color: white;
                 padding: 10px 20px;
                 border: none;
@@ -194,11 +197,11 @@ class BudgetSettingsWidget(QWidget):
                 font-size: 14px;
             }
             QPushButton:hover {
-                background-color: #c0392b;
+                background-color: #2980b9;
             }
         """)
-        reset_btn.clicked.connect(self._reset_period)
-        button_layout.addWidget(reset_btn)
+        view_period_btn.clicked.connect(self._reset_period)
+        button_layout.addWidget(view_period_btn)
 
         save_btn = QPushButton("Save Settings")
         save_btn.setStyleSheet("""
@@ -221,26 +224,31 @@ class BudgetSettingsWidget(QWidget):
         layout.addLayout(button_layout)
         layout.addStretch()
 
+    def _on_period_changed(self, period: str):
+        """Handle period selection change."""
+        self._load_settings()
+
     def _load_settings(self):
         """Load budget settings from database."""
         if not self.db_manager:
             return
 
         try:
-            # Load settings from database
-            conn = self.db_manager.get_connection()
-            cursor = conn.cursor()
-            cursor.execute(
-                "SELECT key, value FROM settings WHERE key LIKE 'budget_%'"
-            )
-            settings = dict(cursor.fetchall())
+            # Load preferences from database
+            query = "SELECT key, value FROM preferences WHERE key IN ('spend_cap_weekly', 'spend_cap_monthly', 'budget_alert_threshold')"
+            results = self.db_manager.execute_query(query)
+            prefs = dict(results) if results else {}
 
-            if "budget_amount" in settings:
-                self.budget_amount.setValue(float(settings["budget_amount"]))
-            if "budget_period" in settings:
-                self.budget_period.setCurrentText(settings["budget_period"])
-            if "budget_alert_threshold" in settings:
-                self.alert_threshold.setValue(float(settings["budget_alert_threshold"]))
+            # Load budget based on current period selection
+            period = self.budget_period.currentText()
+            if period == "Weekly" and "spend_cap_weekly" in prefs:
+                self.budget_amount.setValue(float(prefs["spend_cap_weekly"]))
+            elif period == "Monthly" and "spend_cap_monthly" in prefs:
+                self.budget_amount.setValue(float(prefs["spend_cap_monthly"]))
+
+            # Load alert threshold
+            if "budget_alert_threshold" in prefs:
+                self.alert_threshold.setValue(float(prefs["budget_alert_threshold"]))
 
             self._update_spending_display()
 
@@ -261,29 +269,52 @@ class BudgetSettingsWidget(QWidget):
             conn = self.db_manager.get_connection()
             cursor = conn.cursor()
 
-            # Save settings
-            settings = {
-                "budget_amount": str(self.budget_amount.value()),
-                "budget_period": self.budget_period.currentText(),
-                "budget_alert_threshold": str(self.alert_threshold.value()),
-            }
+            # Determine which preference key to use based on period
+            period = self.budget_period.currentText()
+            if period == "Weekly":
+                budget_key = "spend_cap_weekly"
+            elif period == "Monthly":
+                budget_key = "spend_cap_monthly"
+            else:
+                # For Bi-weekly and Quarterly, we'll store as monthly equivalent
+                budget_value = self.budget_amount.value()
+                if period == "Bi-weekly":
+                    # Store as monthly (bi-weekly * ~2.17)
+                    budget_key = "spend_cap_monthly"
+                    budget_value = budget_value * 2.17
+                elif period == "Quarterly":
+                    # Store as monthly (quarterly / 3)
+                    budget_key = "spend_cap_monthly"
+                    budget_value = budget_value / 3
+                self.budget_amount.setValue(budget_value)
 
-            for key, value in settings.items():
-                cursor.execute(
-                    """
-                    INSERT INTO settings (key, value)
-                    VALUES (?, ?)
-                    ON CONFLICT(key) DO UPDATE SET value = excluded.value
-                    """,
-                    (key, value)
-                )
+            # Save budget preference
+            cursor.execute(
+                """
+                INSERT INTO preferences (key, value)
+                VALUES (?, ?)
+                ON CONFLICT(key) DO UPDATE SET value = excluded.value
+                """,
+                (budget_key, str(self.budget_amount.value()))
+            )
+
+            # Save alert threshold
+            cursor.execute(
+                """
+                INSERT INTO preferences (key, value)
+                VALUES (?, ?)
+                ON CONFLICT(key) DO UPDATE SET value = excluded.value
+                """,
+                ("budget_alert_threshold", str(self.alert_threshold.value()))
+            )
 
             conn.commit()
 
             QMessageBox.information(
                 self,
                 "Settings Saved",
-                "Budget settings have been saved successfully."
+                f"Budget settings have been saved successfully.\n\n"
+                f"{period} budget: ${self.budget_amount.value():.2f}"
             )
 
             self._update_spending_display()
@@ -297,46 +328,53 @@ class BudgetSettingsWidget(QWidget):
             )
 
     def _reset_period(self):
-        """Reset the current spending period."""
-        reply = QMessageBox.question(
-            self,
-            "Reset Period",
-            "Are you sure you want to reset the current spending period?\n\n"
-            "This will clear the spending tracking for this period.",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-        )
+        """Show information about current spending period."""
+        if not self.db_manager:
+            return
 
-        if reply == QMessageBox.StandardButton.Yes:
-            if not self.db_manager:
-                return
+        try:
+            period = self.budget_period.currentText()
 
-            try:
-                conn = self.db_manager.get_connection()
-                cursor = conn.cursor()
+            # Calculate current spending based on period
+            from datetime import datetime, timedelta
 
-                # Reset spending tracking
-                cursor.execute(
-                    """
-                    DELETE FROM settings WHERE key LIKE 'budget_spent_%'
-                    """
-                )
-                conn.commit()
+            if period == "Weekly":
+                period_start = (datetime.now() - timedelta(days=datetime.now().weekday())).date()
+                period_name = "this week"
+            else:  # Monthly (and others default to monthly)
+                period_start = datetime.now().replace(day=1).date()
+                period_name = "this month"
 
-                QMessageBox.information(
-                    self,
-                    "Period Reset",
-                    "Spending period has been reset."
-                )
+            # Get spending for the period
+            query = """
+                SELECT SUM(total_cost) FROM orders
+                WHERE created_at >= ?
+                  AND status IN ('pending_approval', 'approved', 'placed', 'delivered')
+            """
+            result = self.db_manager.execute_query(query, (period_start.isoformat(),))
+            spent = result[0][0] if result and result[0][0] else 0.0
 
-                self._update_spending_display()
+            budget = self.budget_amount.value()
+            remaining = budget - spent
 
-            except Exception as e:
-                self.logger.error(f"Failed to reset period: {e}")
-                QMessageBox.critical(
-                    self,
-                    "Reset Failed",
-                    f"Failed to reset period:\n{str(e)}"
-                )
+            QMessageBox.information(
+                self,
+                "Current Period Summary",
+                f"Period: {period_name.title()}\n"
+                f"Budget: ${budget:.2f}\n"
+                f"Spent: ${spent:.2f}\n"
+                f"Remaining: ${remaining:.2f}\n\n"
+                f"Note: Spending is calculated from orders.\n"
+                f"Period starts: {period_start}"
+            )
+
+        except Exception as e:
+            self.logger.error(f"Failed to show period info: {e}")
+            QMessageBox.critical(
+                self,
+                "Error",
+                f"Failed to calculate period info:\n{str(e)}"
+            )
 
     def _update_spending_display(self):
         """Update the spending display with current data."""
@@ -344,10 +382,32 @@ class BudgetSettingsWidget(QWidget):
             return
 
         try:
-            # Get current spending (this would typically come from orders)
-            # For now, we'll show placeholder values
+            from datetime import datetime, timedelta
+
             budget = self.budget_amount.value()
-            spent = 0.0  # Would calculate from orders in the current period
+            period = self.budget_period.currentText()
+
+            # Calculate period start based on selection
+            if period == "Weekly":
+                period_start = (datetime.now() - timedelta(days=datetime.now().weekday())).date()
+            elif period == "Bi-weekly":
+                # Last 14 days
+                period_start = (datetime.now() - timedelta(days=14)).date()
+            elif period == "Quarterly":
+                # Last 90 days
+                period_start = (datetime.now() - timedelta(days=90)).date()
+            else:  # Monthly
+                period_start = datetime.now().replace(day=1).date()
+
+            # Get actual spending from orders (matching CheckBudgetTool logic)
+            query = """
+                SELECT SUM(total_cost) FROM orders
+                WHERE created_at >= ?
+                  AND status IN ('pending_approval', 'approved', 'placed', 'delivered')
+            """
+            result = self.db_manager.execute_query(query, (period_start.isoformat(),))
+            spent = result[0][0] if result and result[0][0] else 0.0
+
             remaining = budget - spent
             percentage = (spent / budget * 100) if budget > 0 else 0
 
