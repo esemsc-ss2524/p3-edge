@@ -7,7 +7,7 @@ Defines the abstract interface that all vendor clients must implement.
 from abc import ABC, abstractmethod
 from typing import List, Optional, Dict, Any
 
-from .models import VendorProduct, SearchResult, ShoppingCart
+from .models import VendorProduct, SearchResult, ShoppingCart, BatchSearchResult
 
 
 class VendorClient(ABC):
@@ -43,6 +43,42 @@ class VendorClient(ABC):
             SearchResult with found products
         """
         pass
+
+    def batch_search_products(
+        self,
+        queries: List[str],
+        category: Optional[str] = None,
+        max_results: int = 10,
+        **kwargs
+    ) -> BatchSearchResult:
+        """
+        Search for multiple products in a single call.
+
+        Args:
+            queries: List of search queries
+            category: Optional category filter
+            max_results: Maximum number of results per query
+            **kwargs: Additional vendor-specific parameters
+
+        Returns:
+            BatchSearchResult with results for each query
+        """
+        results = []
+        for query in queries:
+            search_result = self.search_products(
+                query=query,
+                category=category,
+                max_results=max_results,
+                **kwargs
+            )
+            results.append(search_result)
+
+        return BatchSearchResult(
+            queries=queries,
+            results=results,
+            vendor=self.vendor_name,
+            total_queries=len(queries)
+        )
 
     @abstractmethod
     def get_product_details(self, product_id: str) -> Optional[VendorProduct]:
