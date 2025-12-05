@@ -1,8 +1,6 @@
 from typing import Optional, List
-from pathlib import Path
-import os
 
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QThread, QSize
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QThread
 from PyQt6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -16,7 +14,7 @@ from PyQt6.QtWidgets import (
     QSizePolicy,
     QGraphicsDropShadowEffect
 )
-from PyQt6.QtGui import QMovie, QColor, QFont, QIcon
+from PyQt6.QtGui import QColor, QFont
 
 # --- Import your existing services ---
 from ..services.llm_service import LLMService
@@ -238,37 +236,67 @@ class P3Dashboard(QWidget):
     def _setup_ui(self):
         """Set up the modern 2-pane UI with specific ratios."""
         self.setStyleSheet("background-color: #F5F7FA;")
-        
+
         main_layout = QHBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
 
         # ==========================================================
-        # LEFT PANEL: The Character (P3) - 50% Width
+        # LEFT PANEL: P3 Activity - 50% Width
         # ==========================================================
         left_panel = QFrame()
         left_panel.setStyleSheet("background-color: #FFFFFF; border-right: 1px solid #E5E5E5;")
         left_layout = QVBoxLayout(left_panel)
-        left_layout.setContentsMargins(20, 40, 20, 40)
-        
-        # 1. Status Indicator
-        status_container = QHBoxLayout()
+        left_layout.setContentsMargins(20, 20, 20, 20)
+        left_layout.setSpacing(15)
+
+        # 1. Header with Status
+        header_layout = QHBoxLayout()
+
+        p3_title = QLabel("P3 Activity")
+        p3_title.setStyleSheet("""
+            QLabel {
+                font-size: 18px;
+                font-weight: bold;
+                color: #2c3e50;
+            }
+        """)
+        header_layout.addWidget(p3_title)
+
+        header_layout.addStretch()
+
         self.status_dot = QLabel("●")
         self.status_dot.setStyleSheet("color: #27ae60; font-size: 12px;")
-        status_text = QLabel("SYSTEM ONLINE")
+        status_text = QLabel("ACTIVE")
         status_text.setStyleSheet("color: #95a5a6; font-size: 10px; font-weight: bold; letter-spacing: 1px;")
-        status_container.addWidget(self.status_dot)
-        status_container.addWidget(status_text)
-        status_container.addStretch()
-        left_layout.addLayout(status_container)
+        header_layout.addWidget(self.status_dot)
+        header_layout.addWidget(status_text)
 
-        # 2. Character Stage
-        self.character_label = QLabel()
-        self.character_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.character_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        self.character_label.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.character_label.mousePressEvent = lambda event: self._on_character_clicked()
-        left_layout.addWidget(self.character_label, stretch=10)
+        left_layout.addLayout(header_layout)
+
+        # 2. Activity Log
+        self.activity_scroll = QScrollArea()
+        self.activity_scroll.setWidgetResizable(True)
+        self.activity_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        self.activity_scroll.setStyleSheet("""
+            QScrollArea {
+                background: #F8F9FA;
+                border: 1px solid #E5E5E5;
+                border-radius: 5px;
+            }
+            QScrollBar:vertical { width: 8px; background: transparent; }
+            QScrollBar::handle:vertical { background: #cbd5e0; border-radius: 4px; }
+        """)
+
+        self.activity_container = QWidget()
+        self.activity_container.setStyleSheet("background: #F8F9FA;")
+        self.activity_layout = QVBoxLayout(self.activity_container)
+        self.activity_layout.setContentsMargins(15, 15, 15, 15)
+        self.activity_layout.setSpacing(10)
+        self.activity_layout.addStretch()
+
+        self.activity_scroll.setWidget(self.activity_container)
+        left_layout.addWidget(self.activity_scroll, stretch=1)
 
         # 3. HUD Stats
         stats_layout = QHBoxLayout()
@@ -285,7 +313,7 @@ class P3Dashboard(QWidget):
             stats_layout.addWidget(pill)
         stats_layout.addStretch()
         left_layout.addLayout(stats_layout)
-        
+
         # Add Left Panel with Stretch 1 (50% relative to total 2)
         main_layout.addWidget(left_panel, stretch=1) 
 
@@ -363,72 +391,53 @@ class P3Dashboard(QWidget):
         # Add Right Panel with Stretch 1 (50% relative to total 2)
         main_layout.addWidget(right_panel, stretch=1)
 
-        # Initialize Default Animation
-        self._play_idle_animation()
+    # --- Activity Log Methods ---
 
-    # --- Animation Handling ---
-    
-    def _play_idle_animation(self):
-        """Play idle animation."""
-        self._play_animation("assets/p3_idle.webp")
+    def _add_activity(self, message: str, activity_type: str = "info"):
+        """Add activity message to P3 activity log."""
+        from datetime import datetime
 
-    def _play_wave_animation(self):
-        """Play waving animation."""
-        self._play_animation("assets/p3_wave.webp")
-        # Return to idle after approx duration of wave (e.g., 3 seconds)
-        QTimer.singleShot(3000, self._play_idle_animation)
+        # Remove spacer
+        if self.activity_layout.count() > 0:
+            item = self.activity_layout.itemAt(self.activity_layout.count() - 1)
+            if item.spacerItem():
+                self.activity_layout.removeItem(item)
 
-    def _play_thinking_animation(self):
-        """Play thinking animation."""
-        self._play_animation("assets/p3_thinking.webp")
+        # Create activity widget
+        activity_widget = QFrame()
+        activity_widget.setStyleSheet("""
+            QFrame {
+                background-color: white;
+                border-left: 3px solid #3498db;
+                border-radius: 3px;
+                padding: 8px;
+            }
+        """)
 
-    def _play_animation(self, path_str: str):
-        """
-        Generic method to load and play animation on the character label
-        with enforced height consistency.
-        """
-        file_path = Path(path_str)
-        if not file_path.exists():
-            self.logger.warning(f"Animation file not found: {path_str}")
-            if self.character_label.movie() is None:
-                self.character_label.setText("🤖")
-            return
+        activity_layout = QVBoxLayout(activity_widget)
+        activity_layout.setContentsMargins(8, 8, 8, 8)
+        activity_layout.setSpacing(4)
 
-        # 1. Check if we are already playing this file to avoid flickering
-        current_movie = self.character_label.movie()
-        if current_movie and current_movie.fileName() == str(file_path):
-            if current_movie.state() != QMovie.MovieState.Running:
-                current_movie.start()
-            return
+        # Time label
+        time_label = QLabel(datetime.now().strftime("%H:%M"))
+        time_label.setStyleSheet("color: #95a5a6; font-size: 10px;")
+        activity_layout.addWidget(time_label)
 
-        # 2. Create the new movie
-        movie = QMovie(str(file_path))
-        movie.setCacheMode(QMovie.CacheMode.CacheAll)
-        
-        if movie.isValid():
-            # --- SCALING LOGIC START ---
-            # We enforce a specific height for the character animation
-            # Reduced size to keep dashboard compact
-            target_height = 250 
-            
-            # Jump to frame 0 to get the actual size of the video/gif
-            movie.jumpToFrame(0)
-            orig_size = movie.currentImage().size()
-            
-            if orig_size.isValid():
-                aspect_ratio = orig_size.width() / orig_size.height()
-                new_width = int(target_height * aspect_ratio)
-                movie.setScaledSize(QSize(new_width, target_height))
-            # --- SCALING LOGIC END ---
+        # Message label
+        msg_label = QLabel(message)
+        msg_label.setWordWrap(True)
+        msg_label.setStyleSheet("color: #2c3e50; font-size: 13px;")
+        activity_layout.addWidget(msg_label)
 
-            self.character_label.setMovie(movie)
-            movie.start()
-        else:
-            self.logger.error(f"Invalid movie file: {path_str}")
+        self.activity_layout.addWidget(activity_widget)
 
-    def _on_character_clicked(self):
-        self._play_wave_animation()
-        self._add_message("Hi there! I'm P3, ready to help.", is_user=False)
+        # Add spacer back
+        self.activity_layout.addStretch()
+
+        # Scroll to bottom
+        QTimer.singleShot(50, lambda: self.activity_scroll.verticalScrollBar().setValue(
+            self.activity_scroll.verticalScrollBar().maximum()
+        ))
 
     # --- Chat Logic ---
 
@@ -443,11 +452,10 @@ class P3Dashboard(QWidget):
 
         self._add_message(message, is_user=True)
         self.input_field.clear()
-        
+
         # UI Feedback
         self.input_field.setEnabled(False)
-        self.status_dot.setStyleSheet("color: #f39c12;") # Orange for thinking
-        self._play_thinking_animation()
+        self.status_dot.setStyleSheet("color: #f39c12;")  # Orange for thinking
 
         # Threading
         self.chat_worker = ChatWorker(self.llm_service, message)
@@ -460,13 +468,12 @@ class P3Dashboard(QWidget):
         self._add_message(agent_response.response, is_user=False)
 
     def _handle_error(self, error_msg: str):
-        self._add_message(f"⚠️ System Error: {error_msg}", is_user=False)
+        self._add_message(f"⚠️ Error: {error_msg}", is_user=False)
 
     def _chat_finished(self):
         self.input_field.setEnabled(True)
         self.input_field.setFocus()
-        self.status_dot.setStyleSheet("color: #27ae60;") # Green for ready
-        self._play_idle_animation()
+        self.status_dot.setStyleSheet("color: #27ae60;")  # Green for ready
 
     def _add_message(self, text: str, is_user: bool):
         # Remove spacer
@@ -542,32 +549,49 @@ class P3Dashboard(QWidget):
     # --- Autonomous Agent Signal Handlers ---
 
     def _on_agent_cycle_started(self, cycle_id: str):
-        """Called when autonomous agent starts a new cycle."""
-        self.logger.info(f"Agent cycle started: {cycle_id}")
-        self._add_message(f"[Agent] Starting autonomous maintenance cycle...", is_user=False)
+        """Called when P3 starts a maintenance cycle."""
+        self.logger.info(f"P3 cycle started: {cycle_id}")
+        self._add_activity("🔍 Checking inventory and groceries...")
         self.status_dot.setStyleSheet("color: #f39c12;")  # Orange for active
 
     def _on_agent_cycle_completed(self, cycle_id: str, summary: dict):
-        """Called when autonomous agent completes a cycle."""
+        """Called when P3 completes a cycle."""
         status = summary.get('status', 'unknown')
-        self.logger.info(f"Agent cycle completed: {cycle_id} - Status: {status}")
+        self.logger.info(f"P3 cycle completed: {cycle_id} - Status: {status}")
 
         if status == 'completed':
-            tool_calls = summary.get('tool_calls', 0)
-            response = summary.get('response', 'No actions taken')
-            self._add_message(f"[Agent] Cycle complete. {tool_calls} action(s) taken. {response}", is_user=False)
+            response = summary.get('response', '')
+            # Use the response from the LLM as it should be in natural language
+            if response and response != 'No actions taken':
+                self._add_activity(f"✅ {response}")
         elif status == 'skipped':
-            reason = summary.get('reason', 'No action needed')
-            self.logger.debug(f"Agent cycle skipped: {reason}")
-            # Don't show skipped cycles in chat to reduce clutter
+            # Don't show skipped cycles to reduce clutter
+            pass
         elif status == 'error':
             error = summary.get('error', 'Unknown error')
-            self._add_message(f"[Agent] Cycle failed: {error}", is_user=False)
+            self._add_activity(f"⚠️ Encountered an issue: {error}")
 
         self.status_dot.setStyleSheet("color: #27ae60;")  # Green for ready
-        self._update_stats()  # Refresh stats after agent actions
+        self._update_stats()  # Refresh stats after actions
 
     def _on_agent_action(self, action_type: str, description: str):
-        """Called when autonomous agent takes an action."""
-        self.logger.info(f"Agent action: {action_type} - {description}")
-        self._add_message(f"[Agent] {description}", is_user=False)
+        """Called when P3 takes an action."""
+        self.logger.info(f"P3 action: {action_type} - {description}")
+
+        # Convert technical descriptions to natural language
+        natural_message = self._convert_to_natural_language(action_type, description)
+        self._add_activity(natural_message)
+
+    def _convert_to_natural_language(self, action_type: str, description: str) -> str:
+        """Convert technical action descriptions to natural language."""
+        # Map action types to user-friendly messages
+        if "low stock" in description.lower() or "running out" in description.lower():
+            return f"🛒 {description}"
+        elif "added to cart" in description.lower():
+            return f"➕ {description}"
+        elif "forecast" in description.lower():
+            return f"📊 {description}"
+        elif "training" in description.lower() or "model" in description.lower():
+            return f"🧠 {description}"
+        else:
+            return f"ℹ️ {description}"
