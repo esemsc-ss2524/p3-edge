@@ -129,6 +129,7 @@ class BatchSearchProductsTool(BaseTool):
                 type=ToolParameterType.ARRAY,
                 description="List of search queries/item names (e.g., ['milk', 'eggs', 'bread'])",
                 required=True,
+                items={"type": "string"},  # Specify array contains strings
             ),
             ToolParameter(
                 name="category",
