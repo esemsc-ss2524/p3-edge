@@ -207,12 +207,13 @@ class P3Dashboard(QWidget):
     Focus: Character presence and natural conversation.
     """
 
-    def __init__(self, db_manager: DatabaseManager, tool_executor=None, autonomous_agent=None, parent=None):
+    def __init__(self, db_manager: DatabaseManager, tool_executor=None, autonomous_agent=None, cart_service=None, parent=None):
         super().__init__(parent)
         self.logger = get_logger("p3_dashboard")
         self.db_manager = db_manager
         self.tool_executor = tool_executor
         self.autonomous_agent = autonomous_agent
+        self.cart_service = cart_service
         self.llm_service: Optional[LLMService] = None
         self.chat_worker: Optional[ChatWorker] = None
 
@@ -511,23 +512,29 @@ class P3Dashboard(QWidget):
     def _update_stats(self):
         if not self.db_manager:
             return
-        
+
         # Use a background thread for DB calls in production to prevent UI freeze
         try:
-            # 1. Inventory
+            # 1. Inventory - Total items
             res = self.db_manager.execute_query("SELECT COUNT(*) FROM inventory")
             val = res[0][0] if res else 0
             self.stat_widgets["inventory"].update_value(str(val))
 
-            # 2. Low Stock
-            res = self.db_manager.execute_query("SELECT COUNT(*) FROM inventory WHERE quantity_current <= quantity_min")
+            # 2. Low Stock - Items at or below minimum quantity
+            res = self.db_manager.execute_query(
+                "SELECT COUNT(*) FROM inventory WHERE quantity_current <= quantity_min AND quantity_min > 0"
+            )
             val = res[0][0] if res else 0
             self.stat_widgets["low_stock"].update_value(str(val))
 
-            # 3. Pending
-            res = self.db_manager.execute_query("SELECT COUNT(*) FROM orders WHERE status = 'PENDING'")
-            val = res[0][0] if res else 0
-            self.stat_widgets["pending"].update_value(str(val))
+            # 3. Cart Items - Count items in active shopping carts
+            cart_count = 0
+            if self.cart_service:
+                # Count items across all active carts
+                for vendor, cart in self.cart_service.active_carts.items():
+                    if cart and cart.items:
+                        cart_count += len(cart.items)
+            self.stat_widgets["pending"].update_value(str(cart_count))
 
         except Exception as e:
             self.logger.error(f"Stats update error: {e}")

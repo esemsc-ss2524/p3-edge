@@ -161,7 +161,7 @@ class MainWindow(QMainWindow):
 
         # Create pages
         self.pages = {
-            "dashboard": P3Dashboard(self.db_manager, tool_executor=self.tool_executor, autonomous_agent=self.autonomous_agent) if self.db_manager else self._create_placeholder_page("Dashboard"),
+            "dashboard": P3Dashboard(self.db_manager, tool_executor=self.tool_executor, autonomous_agent=self.autonomous_agent, cart_service=self.cart_service) if self.db_manager else self._create_placeholder_page("Dashboard"),
             "inventory": InventoryPage(self.inventory_service) if self.inventory_service else self._create_placeholder_page("Inventory Management"),
             "forecasts": ForecastPage(self.forecast_service) if self.forecast_service else self._create_placeholder_page("Forecast View"),
             "shopping_cart": CartPage(self.db_manager, cart_service=self.cart_service) if self.db_manager else self._create_placeholder_page("Shopping Cart"),
