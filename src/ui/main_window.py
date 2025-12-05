@@ -27,8 +27,9 @@ from src.services.forecast_service import ForecastService
 from src.ui.p3_dashboard import P3Dashboard
 from src.ui.inventory_page import InventoryPage
 from src.ui.forecast_page import ForecastPage
-from src.ui.smart_fridge_page import SmartFridgePage
 from src.ui.cart_page import CartPage
+from src.ui.order_page import OrderPage
+from src.ui.settings_page import SettingsPage
 from src.utils import get_logger
 
 
@@ -134,7 +135,6 @@ class MainWindow(QMainWindow):
             ("Forecasts", self.show_forecasts),
             ("Shopping Cart", self.show_shopping_cart),
             ("Orders", self.show_order_history),
-            ("Smart Fridge", self.show_smart_fridge),
             ("Settings", self.show_settings),
         ]
 
@@ -165,21 +165,23 @@ class MainWindow(QMainWindow):
             "inventory": InventoryPage(self.inventory_service) if self.inventory_service else self._create_placeholder_page("Inventory Management"),
             "forecasts": ForecastPage(self.forecast_service) if self.forecast_service else self._create_placeholder_page("Forecast View"),
             "shopping_cart": CartPage(self.db_manager, cart_service=self.cart_service) if self.db_manager else self._create_placeholder_page("Shopping Cart"),
-            "order_history": self._create_placeholder_page("Order History"),
-            "smart_fridge": SmartFridgePage(self.db_manager) if self.db_manager else self._create_placeholder_page("Smart Refrigerator"),
-            "settings": self._create_placeholder_page("Settings"),
+            "order_history": OrderPage(self.db_manager, cart_service=self.cart_service) if self.db_manager else self._create_placeholder_page("Order History"),
+            "settings": SettingsPage(self.db_manager) if self.db_manager else self._create_placeholder_page("Settings"),
         }
 
         for page in self.pages.values():
             self.content_stack.addWidget(page)
 
-        # Connect smart fridge signals
-        if "smart_fridge" in self.pages and hasattr(self.pages["smart_fridge"], "connection_widget"):
-            smart_fridge_page = self.pages["smart_fridge"]
-            if hasattr(smart_fridge_page, "connection_widget"):
-                smart_fridge_page.connection_widget.connection_changed.connect(
-                    self._on_smart_fridge_connection_changed
-                )
+        # Connect smart fridge signals from settings page
+        if "settings" in self.pages and hasattr(self.pages["settings"], "tabs"):
+            settings_page = self.pages["settings"]
+            # Find Smart Fridge tab and connect signals
+            for i in range(settings_page.tabs.count()):
+                widget = settings_page.tabs.widget(i)
+                if hasattr(widget, "connection_changed"):
+                    widget.connection_changed.connect(
+                        self._on_smart_fridge_connection_changed
+                    )
 
         self.main_layout.addWidget(self.content_stack)
 
@@ -389,11 +391,6 @@ class MainWindow(QMainWindow):
         """Show the order history page."""
         self.content_stack.setCurrentWidget(self.pages["order_history"])
         self.status_bar.showMessage("Order History")
-
-    def show_smart_fridge(self) -> None:
-        """Show the smart fridge page."""
-        self.content_stack.setCurrentWidget(self.pages["smart_fridge"])
-        self.status_bar.showMessage("Smart Refrigerator")
 
     def show_settings(self) -> None:
         """Show the settings page."""
