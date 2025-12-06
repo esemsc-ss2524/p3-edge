@@ -85,7 +85,9 @@ def main() -> None:
             "audit_log",
             "model_metadata",
             "vendor_products",
-            "conversations"
+            "conversations",
+            "agent_memory",
+            "user_preferences"
         ]
 
         logger.info("\nVerifying database tables:")

@@ -383,17 +383,17 @@ class AutonomousAgent(QObject):
             if expiring_count > 0:
                 return True, f"{expiring_count} item(s) expiring within 3 days"
 
-            # Check 3: Forecasts predicting runout soon (next 7 days)
+            # Check 3: Forecasts predicting runout soon (next 3 days)
             forecast_query = """
                 SELECT COUNT(*) FROM forecasts
-                WHERE predicted_runout_date <= date('now', '+7 days')
+                WHERE predicted_runout_date <= date('now', '+3 days')
                   AND predicted_runout_date > date('now')
             """
             result = self.db_manager.execute_query(forecast_query)
             forecast_count = result[0][0] if result else 0
 
             if forecast_count > 0:
-                return True, f"{forecast_count} item(s) predicted to run out within 7 days"
+                return True, f"{forecast_count} item(s) predicted to run out within 3 days"
 
             # Check 4: Pending orders need approval
             pending_query = """
@@ -450,7 +450,7 @@ class AutonomousAgent(QObject):
             # Budget summary
             budget_query = """
                 SELECT SUM(total_cost) FROM orders
-                WHERE created_at >= date('now', '-7 days')
+                WHERE created_at >= date('now', '-3 days')
                   AND status IN ('PENDING', 'APPROVED', 'PLACED')
             """
             result = self.db_manager.execute_query(budget_query)

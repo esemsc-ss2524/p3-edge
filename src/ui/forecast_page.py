@@ -74,7 +74,7 @@ class ForecastPage(QWidget):
         layout.addWidget(self.stats_label)
 
         # Low stock alerts
-        self.alerts_group = QGroupBox("Low Stock Alerts (Next 7 Days)")
+        self.alerts_group = QGroupBox("Low Stock Alerts (Next 3 Days)")
         alerts_layout = QVBoxLayout()
         self.alerts_label = QLabel("No alerts")
         alerts_layout.addWidget(self.alerts_label)
@@ -184,9 +184,9 @@ class ForecastPage(QWidget):
 
                 # Color code based on urgency
                 days_until = (forecast.predicted_runout_date - datetime.now().date()).days
-                if days_until <= 3:
+                if days_until <= 2:
                     runout_item.setBackground(QColor(255, 200, 200))  # Red
-                elif days_until <= 7:
+                elif days_until <= 3:
                     runout_item.setBackground(QColor(255, 255, 200))  # Yellow
             else:
                 runout_item = QTableWidgetItem("N/A")
@@ -212,7 +212,7 @@ class ForecastPage(QWidget):
                 conf_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
 
                 # Color code confidence
-                if confidence_pct >= 80:
+                if confidence_pct >= 75:
                     conf_item.setBackground(QColor(200, 255, 200))  # Green
                 elif confidence_pct >= 50:
                     conf_item.setBackground(QColor(255, 255, 200))  # Yellow
@@ -251,7 +251,7 @@ class ForecastPage(QWidget):
         runout_soon = sum(
             1 for f in self.forecasts
             if f.predicted_runout_date and
-            (f.predicted_runout_date - datetime.now().date()).days <= 7
+            (f.predicted_runout_date - datetime.now().date()).days <= 3
         )
         high_confidence = sum(
             1 for f in self.forecasts
@@ -260,8 +260,8 @@ class ForecastPage(QWidget):
 
         self.stats_label.setText(
             f"Total Forecasts: {total} | "
-            f"Low Stock (Next 7 Days): {runout_soon} | "
-            f"High Confidence (≥80%): {high_confidence}"
+            f"Low Stock (Next 3 Days): {runout_soon} | "
+            f"High Confidence (≥75%): {high_confidence}"
         )
 
     def _update_alerts(self):
@@ -269,7 +269,7 @@ class ForecastPage(QWidget):
         if not self.forecast_service:
             return
 
-        alerts = self.forecast_service.get_low_stock_predictions(days_ahead=7)
+        alerts = self.forecast_service.get_low_stock_predictions(days_ahead=3)
 
         if not alerts:
             self.alerts_label.setText("No low stock alerts")

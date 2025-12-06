@@ -215,7 +215,7 @@ class ForecastService:
 
     def get_low_stock_predictions(
         self,
-        days_ahead: int = 7,
+        days_ahead: int = 3,
     ) -> List[Forecast]:
         """
         Get forecasts predicting low stock within threshold days.

@@ -143,19 +143,19 @@ class SamsungFridgeSimulator:
     def _initialize_sample_inventory(self):
         """Initialize with sample vegetarian items."""
         sample_items = [
-            {"name": "Whole Milk", "quantity": 0.75, "unit": "gallon", "location": "door", "category": "Dairy"},
-            {"name": "Greek Yogurt", "quantity": 24, "unit": "oz", "location": "upper_shelf", "category": "Dairy"},
-            {"name": "Cheddar Cheese", "quantity": 0.5, "unit": "lb", "location": "upper_shelf", "category": "Dairy"},
-            {"name": "Baby Spinach", "quantity": 1.0, "unit": "lb", "location": "crisper", "category": "Produce"},
-            {"name": "Romaine Lettuce", "quantity": 1, "unit": "head", "location": "crisper", "category": "Produce"},
-            {"name": "Baby Carrots", "quantity": 1.5, "unit": "lb", "location": "crisper", "category": "Produce"},
-            {"name": "Bell Peppers", "quantity": 3, "unit": "count", "location": "crisper", "category": "Produce"},
-            {"name": "Strawberries", "quantity": 1.0, "unit": "lb", "location": "upper_shelf", "category": "Produce"},
-            {"name": "Orange Juice", "quantity": 48, "unit": "oz", "location": "door", "category": "Beverages"},
-            {"name": "Almond Milk", "quantity": 32, "unit": "oz", "location": "door", "category": "Beverages"},
-            {"name": "Tofu Extra Firm", "quantity": 1.0, "unit": "lb", "location": "lower_shelf", "category": "Protein"},
-            {"name": "Hummus", "quantity": 12, "unit": "oz", "location": "upper_shelf", "category": "Condiments"},
-            {"name": "Eggs Large", "quantity": 1.0, "unit": "dozen", "location": "door", "category": "Protein"},
+            {"name": "Whole Milk", "quantity": 3.75, "unit": "gallon", "location": "door", "category": "Dairy"},
+            {"name": "Greek Yogurt", "quantity": 64, "unit": "oz", "location": "upper_shelf", "category": "Dairy"},
+            {"name": "Cheddar Cheese", "quantity": 5.5, "unit": "lb", "location": "upper_shelf", "category": "Dairy"},
+            {"name": "Baby Spinach", "quantity": 4.0, "unit": "lb", "location": "crisper", "category": "Produce"},
+            {"name": "Romaine Lettuce", "quantity": 3, "unit": "head", "location": "crisper", "category": "Produce"},
+            {"name": "Baby Carrots", "quantity": 4.5, "unit": "lb", "location": "crisper", "category": "Produce"},
+            {"name": "Bell Peppers", "quantity": 6, "unit": "count", "location": "crisper", "category": "Produce"},
+            {"name": "Strawberries", "quantity": 4.0, "unit": "lb", "location": "upper_shelf", "category": "Produce"},
+            {"name": "Orange Juice", "quantity": 68, "unit": "oz", "location": "door", "category": "Beverages"},
+            {"name": "Almond Milk", "quantity": 64, "unit": "oz", "location": "door", "category": "Beverages"},
+            {"name": "Tofu Extra Firm", "quantity": 3.0, "unit": "lb", "location": "lower_shelf", "category": "Protein"},
+            {"name": "Hummus", "quantity": 36, "unit": "oz", "location": "upper_shelf", "category": "Condiments"},
+            {"name": "Eggs Large", "quantity": 2.0, "unit": "dozen", "location": "door", "category": "Protein"},
         ]
 
         for item in sample_items:

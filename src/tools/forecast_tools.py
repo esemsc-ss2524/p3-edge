@@ -130,7 +130,7 @@ class GetLowStockPredictionsTool(BaseTool):
         return "List of items predicted to run out soon with confidence scores"
 
     def execute(
-        self, days: int = 7
+        self, days: int = 3
     ) -> List[Dict[str, Any]]:
         """Get predictions."""
         predictions = self.forecast_service.get_low_stock_predictions(
