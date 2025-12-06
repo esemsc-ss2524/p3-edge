@@ -6,7 +6,7 @@ Provides interface for managing Smart Fridge connection, budget settings, and ot
 
 from typing import Optional
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -26,11 +26,14 @@ from PyQt6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QProgressBar,
+    QCheckBox,
+    QSpinBox,
 )
 
 from src.database.db_manager import DatabaseManager
 from src.ui.smart_fridge_page import SmartFridgeConnectionWidget
 from src.services.memory_service import MemoryService
+from src.config import get_config_manager
 from src.utils import get_logger
 
 
@@ -975,12 +978,284 @@ class MemorySettingsWidget(QWidget):
                 )
 
 
+class AutonomousSettingsWidget(QWidget):
+    """Widget for managing autonomous agent settings."""
+
+    def __init__(self, autonomous_agent=None, parent=None):
+        super().__init__(parent)
+        self.autonomous_agent = autonomous_agent
+        self.config = get_config_manager()
+        self.logger = get_logger("autonomous_settings")
+
+        self._setup_ui()
+        self._load_settings()
+
+    def _setup_ui(self):
+        """Set up the UI."""
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(15, 15, 15, 15)
+        layout.setSpacing(20)
+
+        # Title
+        title = QLabel("Autonomous Agent Configuration")
+        title.setStyleSheet("""
+            QLabel {
+                font-size: 18px;
+                font-weight: bold;
+                color: #2c3e50;
+            }
+        """)
+        layout.addWidget(title)
+
+        # Description
+        desc = QLabel(
+            "The autonomous agent runs on a scheduled cycle to proactively manage "
+            "inventory and shopping. Configure when and how often it runs."
+        )
+        desc.setWordWrap(True)
+        desc.setStyleSheet("color: #7f8c8d; font-size: 13px;")
+        layout.addWidget(desc)
+
+        # Agent Settings Group
+        agent_group = QGroupBox("Agent Configuration")
+        agent_group.setStyleSheet("""
+            QGroupBox {
+                font-weight: bold;
+                border: 2px solid #bdc3c7;
+                border-radius: 5px;
+                margin-top: 10px;
+                padding-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 5px 0 5px;
+            }
+        """)
+        agent_layout = QFormLayout()
+        agent_layout.setSpacing(15)
+
+        # Enable/Disable Checkbox
+        self.enabled_checkbox = QCheckBox("Enable Autonomous Agent")
+        self.enabled_checkbox.setStyleSheet("""
+            QCheckBox {
+                font-size: 14px;
+                padding: 8px;
+            }
+            QCheckBox::indicator {
+                width: 20px;
+                height: 20px;
+            }
+        """)
+        self.enabled_checkbox.stateChanged.connect(self._on_enabled_changed)
+        agent_layout.addRow("Status:", self.enabled_checkbox)
+
+        # Cycle Interval Spinbox
+        self.interval_spinbox = QSpinBox()
+        self.interval_spinbox.setMinimum(1)
+        self.interval_spinbox.setMaximum(1440)  # Max 24 hours
+        self.interval_spinbox.setValue(60)
+        self.interval_spinbox.setSuffix(" minutes")
+        self.interval_spinbox.setStyleSheet("""
+            QSpinBox {
+                padding: 8px;
+                border: 2px solid #bdc3c7;
+                border-radius: 5px;
+                font-size: 14px;
+            }
+            QSpinBox:focus {
+                border: 2px solid #3498db;
+            }
+        """)
+        agent_layout.addRow("Cycle Interval:", self.interval_spinbox)
+
+        # Info label
+        self.info_label = QLabel()
+        self.info_label.setWordWrap(True)
+        self.info_label.setStyleSheet("color: #7f8c8d; font-size: 12px; font-style: italic;")
+        agent_layout.addRow("", self.info_label)
+
+        agent_group.setLayout(agent_layout)
+        layout.addWidget(agent_group)
+
+        # Status Group
+        status_group = QGroupBox("Current Status")
+        status_group.setStyleSheet("""
+            QGroupBox {
+                font-weight: bold;
+                border: 2px solid #bdc3c7;
+                border-radius: 5px;
+                margin-top: 10px;
+                padding-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 5px 0 5px;
+            }
+        """)
+        status_layout = QFormLayout()
+        status_layout.setSpacing(10)
+
+        self.status_label = QLabel("Disabled")
+        self.status_label.setStyleSheet("font-size: 14px; font-weight: bold; color: #e74c3c;")
+        status_layout.addRow("Agent Status:", self.status_label)
+
+        self.last_cycle_label = QLabel("Never")
+        self.last_cycle_label.setStyleSheet("font-size: 14px; color: #7f8c8d;")
+        status_layout.addRow("Last Cycle:", self.last_cycle_label)
+
+        status_group.setLayout(status_layout)
+        layout.addWidget(status_group)
+
+        # Action Buttons
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+
+        save_btn = QPushButton("Save Settings")
+        save_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #27ae60;
+                color: white;
+                padding: 10px 20px;
+                border: none;
+                border-radius: 5px;
+                font-size: 14px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #229954;
+            }
+        """)
+        save_btn.clicked.connect(self._save_settings)
+        button_layout.addWidget(save_btn)
+
+        layout.addLayout(button_layout)
+        layout.addStretch()
+
+    def _load_settings(self):
+        """Load autonomous agent settings from config."""
+        try:
+            # Load settings from config
+            enabled = self.config.get("agent.enabled", True)
+            interval = self.config.get("agent.cycle_interval_minutes", 60)
+
+            # Update UI
+            self.enabled_checkbox.setChecked(enabled)
+            self.interval_spinbox.setValue(interval)
+
+            # Update status display
+            self._update_status_display()
+            self._update_info_label()
+
+        except Exception as e:
+            self.logger.error(f"Failed to load autonomous settings: {e}")
+
+    def _save_settings(self):
+        """Save autonomous agent settings to config file."""
+        try:
+            enabled = self.enabled_checkbox.isChecked()
+            interval = self.interval_spinbox.value()
+
+            # Save to config
+            self.config.set("agent.enabled", enabled, save=False)
+            self.config.set("agent.cycle_interval_minutes", interval, save=True)
+
+            # Apply settings to autonomous agent
+            if self.autonomous_agent:
+                # Update interval
+                self.autonomous_agent.cycle_interval_minutes = interval
+
+                # Update timer if already running
+                if self.autonomous_agent.timer.isActive():
+                    interval_ms = interval * 60 * 1000
+                    self.autonomous_agent.timer.setInterval(interval_ms)
+
+                # Handle enable/disable
+                if enabled and not self.autonomous_agent.enabled:
+                    # Enabling - start agent after 5 seconds
+                    self.autonomous_agent.set_enabled(True)
+                    self.logger.info("Autonomous agent enabled")
+                elif not enabled and self.autonomous_agent.enabled:
+                    # Disabling - stop agent (will finish current cycle if running)
+                    self.autonomous_agent.set_enabled(False)
+                    self.logger.info("Autonomous agent disabled")
+
+            self._update_status_display()
+
+            QMessageBox.information(
+                self,
+                "Settings Saved",
+                f"Autonomous agent settings have been saved successfully.\n\n"
+                f"Enabled: {'Yes' if enabled else 'No'}\n"
+                f"Cycle Interval: {interval} minutes"
+            )
+
+        except Exception as e:
+            self.logger.error(f"Failed to save autonomous settings: {e}")
+            QMessageBox.critical(
+                self,
+                "Save Failed",
+                f"Failed to save settings:\n{str(e)}"
+            )
+
+    def _on_enabled_changed(self, state):
+        """Handle enable/disable checkbox state change."""
+        self._update_info_label()
+
+    def _update_info_label(self):
+        """Update the info label based on current settings."""
+        enabled = self.enabled_checkbox.isChecked()
+        interval = self.interval_spinbox.value()
+
+        if enabled:
+            self.info_label.setText(
+                f"Agent will run every {interval} minutes. "
+                f"On startup, it will start after a 1 minute delay. "
+                f"When enabled here, it will start after 5 seconds."
+            )
+        else:
+            self.info_label.setText(
+                "Agent is disabled and will not run automatically. "
+                "You can still run cycles manually from the Activity Feed."
+            )
+
+    def _update_status_display(self):
+        """Update the status display."""
+        if self.autonomous_agent:
+            if self.autonomous_agent.enabled:
+                self.status_label.setText("Enabled & Running")
+                self.status_label.setStyleSheet("font-size: 14px; font-weight: bold; color: #27ae60;")
+            else:
+                self.status_label.setText("Disabled")
+                self.status_label.setStyleSheet("font-size: 14px; font-weight: bold; color: #e74c3c;")
+
+            # Update last cycle time
+            if self.autonomous_agent.last_cycle_time:
+                from datetime import datetime
+                time_diff = datetime.now() - self.autonomous_agent.last_cycle_time
+                if time_diff.total_seconds() < 60:
+                    self.last_cycle_label.setText("Just now")
+                elif time_diff.total_seconds() < 3600:
+                    minutes = int(time_diff.total_seconds() / 60)
+                    self.last_cycle_label.setText(f"{minutes} minute{'s' if minutes != 1 else ''} ago")
+                else:
+                    hours = int(time_diff.total_seconds() / 3600)
+                    self.last_cycle_label.setText(f"{hours} hour{'s' if hours != 1 else ''} ago")
+            else:
+                self.last_cycle_label.setText("Never")
+        else:
+            self.status_label.setText("Not Available")
+            self.status_label.setStyleSheet("font-size: 14px; font-weight: bold; color: #95a5a6;")
+
+
 class SettingsPage(QWidget):
     """Main settings page with tabs for different settings categories."""
 
-    def __init__(self, db_manager: Optional[DatabaseManager] = None, parent=None):
+    def __init__(self, db_manager: Optional[DatabaseManager] = None, autonomous_agent=None, parent=None):
         super().__init__(parent)
         self.db_manager = db_manager
+        self.autonomous_agent = autonomous_agent
         self.logger = get_logger("settings_page")
 
         self._setup_ui()
@@ -1026,6 +1301,10 @@ class SettingsPage(QWidget):
                 background: #d5dbdb;
             }
         """)
+
+        # Autonomous Agent Tab
+        autonomous_widget = AutonomousSettingsWidget(self.autonomous_agent)
+        self.tabs.addTab(autonomous_widget, "Autonomous")
 
         # Budget Settings Tab
         budget_widget = BudgetSettingsWidget(self.db_manager)

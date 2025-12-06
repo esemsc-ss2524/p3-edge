@@ -218,8 +218,13 @@ class AutonomousAgent(QObject):
             f"Autonomous agent initialized (interval: {cycle_interval_minutes}m, enabled: {enabled})"
         )
 
-    def start(self):
-        """Start the autonomous agent."""
+    def start(self, initial_delay_seconds: int = 60):
+        """
+        Start the autonomous agent.
+
+        Args:
+            initial_delay_seconds: Delay before first cycle (default: 60s for startup, 5s for UI enable)
+        """
         if not self.enabled:
             self.logger.info("Autonomous agent is disabled, not starting")
             return
@@ -234,19 +239,26 @@ class AutonomousAgent(QObject):
 
         self.logger.info(f"Autonomous agent started (checking every {self.cycle_interval_minutes} minutes)")
 
-        # Run initial cycle after short delay
-        QTimer.singleShot(5000, self.run_cycle)  # 5 seconds
+        # Run initial cycle after specified delay
+        QTimer.singleShot(initial_delay_seconds * 1000, self.run_cycle)
+        self.logger.info(f"First cycle will run in {initial_delay_seconds} seconds")
 
     def stop(self):
         """Stop the autonomous agent."""
         self.timer.stop()
         self.logger.info("Autonomous agent stopped")
 
-    def set_enabled(self, enabled: bool):
-        """Enable or disable the agent."""
+    def set_enabled(self, enabled: bool, initial_delay_seconds: int = 5):
+        """
+        Enable or disable the agent.
+
+        Args:
+            enabled: Whether to enable the agent
+            initial_delay_seconds: Delay before first cycle when enabling (default: 5s for UI)
+        """
         self.enabled = enabled
         if enabled:
-            self.start()
+            self.start(initial_delay_seconds=initial_delay_seconds)
         else:
             self.stop()
 
