@@ -212,9 +212,9 @@ class AutonomousAgent(QObject):
         self.timer.timeout.connect(self._on_timer_tick)
 
         # Safety limits per cycle
-        self.max_items_per_cycle = 3  # Don't add more than 3 items per cycle
-        self.max_spend_per_cycle = 50.0  # Don't spend more than $50 per cycle
-        self.cooldown_after_action_minutes = 30  # Wait 30 min after taking action
+        self.max_items_per_cycle = 10  # Don't add more than 3 items per cycle
+        self.max_spend_per_cycle = 100.0  # Don't spend more than $50 per cycle
+        self.cooldown_after_action_minutes = 5  # Wait 30 min after taking action
 
         self.logger.info(
             f"Autonomous agent initialized (interval: {cycle_interval_minutes}m, enabled: {enabled})"
@@ -552,6 +552,7 @@ Focus on the highest priority items first.
 ALWAYS check user preferences before making product decisions.
 Log your reasoning clearly.
 Stop when constraints are met or all critical issues addressed.
+Act independently without asking user for confirmation.
 """
 
     def _on_worker_completed(self, cycle_id: str, summary: dict):
