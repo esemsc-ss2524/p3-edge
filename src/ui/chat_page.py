@@ -681,29 +681,51 @@ class ChatPage(QWidget):
             self.logger.info(f"Attached image: {file_path}")
 
     def _clear_history(self):
-        """Clear chat history."""
+        """Clear chat history from UI, LLM, and database."""
         reply = QMessageBox.question(
             self,
             "Clear History",
-            "Are you sure you want to clear the chat history?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            "Are you sure you want to clear the chat history?\n\nThis will delete all messages from the database.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
         )
 
         if reply == QMessageBox.StandardButton.Yes:
-            # Clear UI
-            while self.chat_layout.count() > 1:  # Keep the stretch
-                item = self.chat_layout.takeAt(0)
-                if item.widget():
-                    item.widget().deleteLater()
+            try:
+                # Clear from database
+                if self.db_manager:
+                    with self.db_manager.get_connection() as conn:
+                        cursor = conn.cursor()
+                        cursor.execute("DELETE FROM conversations")
+                        conn.commit()
 
-            # Clear LLM history
-            if self.llm_service:
-                self.llm_service.clear_history()
+                # Clear UI
+                while self.chat_layout.count() > 1:  # Keep the stretch
+                    item = self.chat_layout.takeAt(0)
+                    if item.widget():
+                        item.widget().deleteLater()
 
-            # Add welcome message back
-            self._add_message(
-                "Chat history cleared. How can I help you?",
-                is_user=False
-            )
+                # Clear LLM history
+                if self.llm_service:
+                    self.llm_service.clear_history()
 
-            self.logger.info("Chat history cleared")
+                # Add welcome message back
+                self._add_message(
+                    "Chat history cleared. How can I help you?",
+                    is_user=False
+                )
+
+                self.logger.info("Chat history cleared successfully")
+                QMessageBox.information(
+                    self,
+                    "Success",
+                    "Chat history cleared successfully"
+                )
+
+            except Exception as e:
+                self.logger.error(f"Failed to clear chat history: {e}")
+                QMessageBox.critical(
+                    self,
+                    "Error",
+                    f"Failed to clear chat history:\n{str(e)}"
+                )

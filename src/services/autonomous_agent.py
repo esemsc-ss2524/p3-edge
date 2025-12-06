@@ -128,6 +128,18 @@ class AgentCycleWorker(QThread):
                 outcome="success"
             )
 
+            # Check if preference memory needs summarization
+            if self.memory.should_summarize_preferences(threshold=90.0):
+                self.logger.warning("Preference memory at 90% capacity, triggering summarization")
+                try:
+                    success = self.memory.summarize_preferences(llm_service=self.llm_service)
+                    if success:
+                        self.logger.info("Preference summarization completed successfully")
+                    else:
+                        self.logger.error("Preference summarization failed")
+                except Exception as e:
+                    self.logger.error(f"Error during preference summarization: {e}")
+
             # Emit completion signal
             summary = {
                 "status": "completed",

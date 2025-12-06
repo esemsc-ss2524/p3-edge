@@ -20,10 +20,17 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QMessageBox,
     QLineEdit,
+    QTableWidget,
+    QTableWidgetItem,
+    QHeaderView,
+    QDialog,
+    QDialogButtonBox,
+    QProgressBar,
 )
 
 from src.database.db_manager import DatabaseManager
 from src.ui.smart_fridge_page import SmartFridgeConnectionWidget
+from src.services.memory_service import MemoryService
 from src.utils import get_logger
 
 
@@ -450,6 +457,524 @@ class BudgetSettingsWidget(QWidget):
             self.logger.error(f"Failed to update spending display: {e}")
 
 
+class EditPreferenceDialog(QDialog):
+    """Dialog for adding or editing a user preference."""
+
+    def __init__(self, preference=None, parent=None):
+        super().__init__(parent)
+        self.preference = preference
+        self.setWindowTitle("Edit Preference" if preference else "Add Preference")
+        self.setMinimumWidth(400)
+        self._setup_ui()
+
+    def _setup_ui(self):
+        """Set up the dialog UI."""
+        layout = QVBoxLayout(self)
+
+        # Form layout
+        form_layout = QFormLayout()
+
+        # Category
+        self.category_combo = QComboBox()
+        self.category_combo.addItems([
+            "dietary",
+            "allergy",
+            "product_preference",
+            "brand_preference",
+            "general"
+        ])
+        form_layout.addRow("Category:", self.category_combo)
+
+        # Preference Key
+        self.key_input = QLineEdit()
+        self.key_input.setPlaceholderText("e.g., milk_type")
+        form_layout.addRow("Preference Key:", self.key_input)
+
+        # Preference Value
+        self.value_input = QLineEdit()
+        self.value_input.setPlaceholderText("e.g., oat milk")
+        form_layout.addRow("Preference Value:", self.value_input)
+
+        # Confidence
+        self.confidence_input = QDoubleSpinBox()
+        self.confidence_input.setMinimum(0.0)
+        self.confidence_input.setMaximum(1.0)
+        self.confidence_input.setSingleStep(0.1)
+        self.confidence_input.setValue(0.5)
+        self.confidence_input.setDecimals(2)
+        form_layout.addRow("Confidence:", self.confidence_input)
+
+        layout.addLayout(form_layout)
+
+        # Load existing values if editing
+        if self.preference:
+            self.category_combo.setCurrentText(self.preference['category'])
+            self.key_input.setText(self.preference['preference_key'])
+            self.value_input.setText(self.preference['preference_value'])
+            self.confidence_input.setValue(self.preference['confidence'])
+
+        # Buttons
+        button_box = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        button_box.accepted.connect(self.accept)
+        button_box.rejected.connect(self.reject)
+        layout.addWidget(button_box)
+
+    def get_values(self):
+        """Get the entered values."""
+        return {
+            'category': self.category_combo.currentText(),
+            'preference_key': self.key_input.text().strip(),
+            'preference_value': self.value_input.text().strip(),
+            'confidence': self.confidence_input.value()
+        }
+
+
+class MemorySettingsWidget(QWidget):
+    """Widget for managing long-term memory (user preferences)."""
+
+    def __init__(self, db_manager: Optional[DatabaseManager] = None, parent=None):
+        super().__init__(parent)
+        self.db_manager = db_manager
+        self.memory_service = MemoryService(db_manager) if db_manager else None
+        self.logger = get_logger("memory_settings")
+
+        self._setup_ui()
+        self._load_preferences()
+
+    def _setup_ui(self):
+        """Set up the UI."""
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(15, 15, 15, 15)
+        layout.setSpacing(20)
+
+        # Title
+        title = QLabel("Long-Term Memory Management")
+        title.setStyleSheet("""
+            QLabel {
+                font-size: 18px;
+                font-weight: bold;
+                color: #2c3e50;
+            }
+        """)
+        layout.addWidget(title)
+
+        # Description
+        desc = QLabel(
+            "These are the user preferences learned by the autonomous agent. "
+            "The agent uses this long-term memory to make personalized decisions."
+        )
+        desc.setWordWrap(True)
+        desc.setStyleSheet("color: #7f8c8d; font-size: 13px;")
+        layout.addWidget(desc)
+
+        # Memory Usage Stats
+        stats_group = QGroupBox("Memory Usage")
+        stats_group.setStyleSheet("""
+            QGroupBox {
+                font-weight: bold;
+                border: 2px solid #bdc3c7;
+                border-radius: 5px;
+                margin-top: 10px;
+                padding-top: 10px;
+            }
+        """)
+        stats_layout = QFormLayout()
+
+        self.word_count_label = QLabel("0 words")
+        self.word_count_label.setStyleSheet("font-size: 14px; color: #3498db;")
+        stats_layout.addRow("Current Usage:", self.word_count_label)
+
+        self.usage_progress = QProgressBar()
+        self.usage_progress.setMaximum(100)
+        self.usage_progress.setValue(0)
+        self.usage_progress.setStyleSheet("""
+            QProgressBar {
+                border: 2px solid #bdc3c7;
+                border-radius: 5px;
+                text-align: center;
+            }
+            QProgressBar::chunk {
+                background-color: #3498db;
+            }
+        """)
+        stats_layout.addRow("Capacity:", self.usage_progress)
+
+        stats_group.setLayout(stats_layout)
+        layout.addWidget(stats_group)
+
+        # Preferences Table
+        prefs_group = QGroupBox("User Preferences")
+        prefs_group.setStyleSheet("""
+            QGroupBox {
+                font-weight: bold;
+                border: 2px solid #bdc3c7;
+                border-radius: 5px;
+                margin-top: 10px;
+                padding-top: 10px;
+            }
+        """)
+        prefs_layout = QVBoxLayout()
+
+        self.preferences_table = QTableWidget()
+        self.preferences_table.setColumnCount(5)
+        self.preferences_table.setHorizontalHeaderLabels([
+            "Category", "Key", "Value", "Confidence", "Mentions"
+        ])
+        self.preferences_table.horizontalHeader().setSectionResizeMode(
+            QHeaderView.ResizeMode.Stretch
+        )
+        self.preferences_table.setSelectionBehavior(
+            QTableWidget.SelectionBehavior.SelectRows
+        )
+        self.preferences_table.setEditTriggers(
+            QTableWidget.EditTrigger.NoEditTriggers
+        )
+        self.preferences_table.setStyleSheet("""
+            QTableWidget {
+                border: 1px solid #bdc3c7;
+                border-radius: 3px;
+                gridline-color: #ecf0f1;
+            }
+            QTableWidget::item {
+                padding: 5px;
+            }
+            QHeaderView::section {
+                background-color: #ecf0f1;
+                padding: 8px;
+                border: none;
+                font-weight: bold;
+            }
+        """)
+        prefs_layout.addWidget(self.preferences_table)
+
+        prefs_group.setLayout(prefs_layout)
+        layout.addWidget(prefs_group)
+
+        # Action Buttons
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+
+        add_btn = QPushButton("Add Preference")
+        add_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #27ae60;
+                color: white;
+                padding: 10px 20px;
+                border: none;
+                border-radius: 5px;
+                font-size: 14px;
+            }
+            QPushButton:hover {
+                background-color: #229954;
+            }
+        """)
+        add_btn.clicked.connect(self._add_preference)
+        button_layout.addWidget(add_btn)
+
+        edit_btn = QPushButton("Edit Selected")
+        edit_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #3498db;
+                color: white;
+                padding: 10px 20px;
+                border: none;
+                border-radius: 5px;
+                font-size: 14px;
+            }
+            QPushButton:hover {
+                background-color: #2980b9;
+            }
+        """)
+        edit_btn.clicked.connect(self._edit_preference)
+        button_layout.addWidget(edit_btn)
+
+        delete_btn = QPushButton("Delete Selected")
+        delete_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #e74c3c;
+                color: white;
+                padding: 10px 20px;
+                border: none;
+                border-radius: 5px;
+                font-size: 14px;
+            }
+            QPushButton:hover {
+                background-color: #c0392b;
+            }
+        """)
+        delete_btn.clicked.connect(self._delete_preference)
+        button_layout.addWidget(delete_btn)
+
+        refresh_btn = QPushButton("Refresh")
+        refresh_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #95a5a6;
+                color: white;
+                padding: 10px 20px;
+                border: none;
+                border-radius: 5px;
+                font-size: 14px;
+            }
+            QPushButton:hover {
+                background-color: #7f8c8d;
+            }
+        """)
+        refresh_btn.clicked.connect(self._load_preferences)
+        button_layout.addWidget(refresh_btn)
+
+        layout.addLayout(button_layout)
+
+    def _load_preferences(self):
+        """Load preferences from database and update UI."""
+        if not self.memory_service:
+            return
+
+        try:
+            # Get all preferences
+            preferences = self.memory_service.get_preferences(min_confidence=0.0)
+
+            # Update memory usage stats
+            word_count = self.memory_service.count_preference_words()
+            usage_pct = self.memory_service.get_preference_usage_percentage()
+
+            self.word_count_label.setText(
+                f"{word_count} / {self.memory_service.max_preference_words} words"
+            )
+            self.usage_progress.setValue(int(usage_pct))
+
+            # Update progress bar color based on usage
+            if usage_pct >= 90:
+                self.usage_progress.setStyleSheet("""
+                    QProgressBar {
+                        border: 2px solid #bdc3c7;
+                        border-radius: 5px;
+                        text-align: center;
+                    }
+                    QProgressBar::chunk {
+                        background-color: #e74c3c;
+                    }
+                """)
+            elif usage_pct >= 70:
+                self.usage_progress.setStyleSheet("""
+                    QProgressBar {
+                        border: 2px solid #bdc3c7;
+                        border-radius: 5px;
+                        text-align: center;
+                    }
+                    QProgressBar::chunk {
+                        background-color: #f39c12;
+                    }
+                """)
+            else:
+                self.usage_progress.setStyleSheet("""
+                    QProgressBar {
+                        border: 2px solid #bdc3c7;
+                        border-radius: 5px;
+                        text-align: center;
+                    }
+                    QProgressBar::chunk {
+                        background-color: #3498db;
+                    }
+                """)
+
+            # Update table
+            self.preferences_table.setRowCount(len(preferences))
+
+            for row, pref in enumerate(preferences):
+                # Category
+                cat_item = QTableWidgetItem(pref['category'])
+                self.preferences_table.setItem(row, 0, cat_item)
+
+                # Key
+                key_item = QTableWidgetItem(pref['preference_key'])
+                self.preferences_table.setItem(row, 1, key_item)
+
+                # Value
+                value_item = QTableWidgetItem(str(pref['preference_value']))
+                self.preferences_table.setItem(row, 2, value_item)
+
+                # Confidence
+                confidence_item = QTableWidgetItem(f"{pref['confidence']:.0%}")
+                self.preferences_table.setItem(row, 3, confidence_item)
+
+                # Mentions
+                mention_item = QTableWidgetItem(str(pref['mention_count']))
+                self.preferences_table.setItem(row, 4, mention_item)
+
+                # Store preference ID in first column
+                cat_item.setData(Qt.ItemDataRole.UserRole, pref['preference_id'])
+
+            self.logger.info(f"Loaded {len(preferences)} preferences")
+
+        except Exception as e:
+            self.logger.error(f"Failed to load preferences: {e}")
+            QMessageBox.critical(
+                self,
+                "Load Failed",
+                f"Failed to load preferences:\n{str(e)}"
+            )
+
+    def _add_preference(self):
+        """Add a new preference."""
+        if not self.memory_service:
+            QMessageBox.warning(self, "Not Available", "Memory service not available")
+            return
+
+        dialog = EditPreferenceDialog(parent=self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            values = dialog.get_values()
+
+            if not values['preference_key'] or not values['preference_value']:
+                QMessageBox.warning(
+                    self,
+                    "Invalid Input",
+                    "Please provide both key and value"
+                )
+                return
+
+            try:
+                self.memory_service.learn_preference(
+                    category=values['category'],
+                    preference_key=values['preference_key'],
+                    preference_value=values['preference_value'],
+                    source='manual'
+                )
+
+                # Update confidence if different from default
+                if values['confidence'] != 0.5:
+                    # Get the just-created preference
+                    prefs = self.memory_service.get_preferences(min_confidence=0.0)
+                    for pref in prefs:
+                        if (pref['preference_key'] == values['preference_key'] and
+                            pref['preference_value'] == values['preference_value']):
+                            self.memory_service.update_preference(
+                                pref['preference_id'],
+                                confidence=values['confidence']
+                            )
+                            break
+
+                QMessageBox.information(
+                    self,
+                    "Success",
+                    "Preference added successfully"
+                )
+                self._load_preferences()
+
+            except Exception as e:
+                self.logger.error(f"Failed to add preference: {e}")
+                QMessageBox.critical(
+                    self,
+                    "Add Failed",
+                    f"Failed to add preference:\n{str(e)}"
+                )
+
+    def _edit_preference(self):
+        """Edit selected preference."""
+        if not self.memory_service:
+            return
+
+        selected = self.preferences_table.selectedItems()
+        if not selected:
+            QMessageBox.warning(
+                self,
+                "No Selection",
+                "Please select a preference to edit"
+            )
+            return
+
+        row = selected[0].row()
+        pref_id = self.preferences_table.item(row, 0).data(Qt.ItemDataRole.UserRole)
+
+        # Get full preference data
+        all_prefs = self.memory_service.get_preferences(min_confidence=0.0)
+        preference = next((p for p in all_prefs if p['preference_id'] == pref_id), None)
+
+        if not preference:
+            QMessageBox.warning(self, "Error", "Preference not found")
+            return
+
+        dialog = EditPreferenceDialog(preference=preference, parent=self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            values = dialog.get_values()
+
+            if not values['preference_key'] or not values['preference_value']:
+                QMessageBox.warning(
+                    self,
+                    "Invalid Input",
+                    "Please provide both key and value"
+                )
+                return
+
+            try:
+                self.memory_service.update_preference(
+                    pref_id,
+                    preference_key=values['preference_key'],
+                    preference_value=values['preference_value'],
+                    category=values['category'],
+                    confidence=values['confidence']
+                )
+
+                QMessageBox.information(
+                    self,
+                    "Success",
+                    "Preference updated successfully"
+                )
+                self._load_preferences()
+
+            except Exception as e:
+                self.logger.error(f"Failed to update preference: {e}")
+                QMessageBox.critical(
+                    self,
+                    "Update Failed",
+                    f"Failed to update preference:\n{str(e)}"
+                )
+
+    def _delete_preference(self):
+        """Delete selected preference."""
+        if not self.memory_service:
+            return
+
+        selected = self.preferences_table.selectedItems()
+        if not selected:
+            QMessageBox.warning(
+                self,
+                "No Selection",
+                "Please select a preference to delete"
+            )
+            return
+
+        row = selected[0].row()
+        pref_id = self.preferences_table.item(row, 0).data(Qt.ItemDataRole.UserRole)
+        pref_key = self.preferences_table.item(row, 1).text()
+
+        reply = QMessageBox.question(
+            self,
+            "Confirm Delete",
+            f"Are you sure you want to delete '{pref_key}'?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+
+        if reply == QMessageBox.StandardButton.Yes:
+            try:
+                self.memory_service.delete_preference(pref_id)
+                QMessageBox.information(
+                    self,
+                    "Success",
+                    "Preference deleted successfully"
+                )
+                self._load_preferences()
+
+            except Exception as e:
+                self.logger.error(f"Failed to delete preference: {e}")
+                QMessageBox.critical(
+                    self,
+                    "Delete Failed",
+                    f"Failed to delete preference:\n{str(e)}"
+                )
+
+
 class SettingsPage(QWidget):
     """Main settings page with tabs for different settings categories."""
 
@@ -505,6 +1030,16 @@ class SettingsPage(QWidget):
         # Budget Settings Tab
         budget_widget = BudgetSettingsWidget(self.db_manager)
         self.tabs.addTab(budget_widget, "Budget")
+
+        # Memory Settings Tab
+        if self.db_manager:
+            memory_widget = MemorySettingsWidget(self.db_manager)
+            self.tabs.addTab(memory_widget, "Memory")
+        else:
+            placeholder = QLabel("Memory settings unavailable\n\nDatabase not initialized.")
+            placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            placeholder.setStyleSheet("color: #95a5a6; font-size: 14px;")
+            self.tabs.addTab(placeholder, "Memory")
 
         # Smart Fridge Tab
         if self.db_manager:
