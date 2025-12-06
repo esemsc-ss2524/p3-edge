@@ -446,7 +446,24 @@ class AutonomousAgent(QObject):
                 summary_parts.append(
                     f"Inventory: {row[0]} total items, {row[1]} low stock, {row[2]} overstocked"
                 )
-                # print(f"Inventory: {row[0]} total items, {row[1]} low stock, {row[2]} overstocked")
+
+            # ✅ Forecast runout summary (next 3 days)
+            forecast_summary_query = """
+                SELECT 
+                    COUNT(*) as total,
+                    SUM(CASE 
+                        WHEN predicted_runout_date <= date('now', '+3 days')
+                        AND predicted_runout_date > date('now')
+                        THEN 1 ELSE 0 END
+                    ) as runout_soon
+                FROM forecasts
+            """
+            result = self.db_manager.execute_query(forecast_summary_query)
+            if result:
+                row = result[0]
+                summary_parts.append(
+                    f"Forecasts: {row[0]} tracked items, {row[1]} predicted to run out within 3 days"
+                )
 
             # Cart summary
             cart_query = """
@@ -466,7 +483,7 @@ class AutonomousAgent(QObject):
             budget_query = """
                 SELECT SUM(total_cost) FROM orders
                 WHERE created_at >= date('now', '-3 days')
-                  AND status IN ('PENDING', 'APPROVED', 'PLACED')
+                AND status IN ('PENDING', 'APPROVED', 'PLACED')
             """
             result = self.db_manager.execute_query(budget_query)
             weekly_spend = result[0][0] if result and result[0][0] else 0.0
@@ -477,6 +494,7 @@ class AutonomousAgent(QObject):
         except Exception as e:
             self.logger.error(f"Error getting state summary: {e}")
             return "Error retrieving state"
+
 
     def _build_system_prompt(
         self,
