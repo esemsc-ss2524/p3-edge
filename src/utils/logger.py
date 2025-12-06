@@ -47,20 +47,29 @@ class EncryptedRotatingFileHandler(RotatingFileHandler):
             delay: Delay file opening until first emit
             encryption_key: Fernet encryption key (required)
         """
-        # Always use binary mode for encrypted logs
-        super().__init__(
-            filename,
-            mode='ab',  # Binary append mode
-            maxBytes=maxBytes,
-            backupCount=backupCount,
-            encoding=None,  # No encoding for binary files
-            delay=delay
-        )
-
         if encryption_key is None:
             raise ValueError("Encryption key is required for EncryptedRotatingFileHandler")
 
         self.cipher = Fernet(encryption_key)
+
+        # Initialize parent with standard mode, we'll override _open()
+        super().__init__(
+            filename,
+            mode=mode,
+            maxBytes=maxBytes,
+            backupCount=backupCount,
+            encoding=encoding,
+            delay=delay
+        )
+
+    def _open(self):
+        """
+        Open the current base file with binary mode.
+
+        Overrides parent method to ensure file is opened in binary mode
+        for encrypted log data.
+        """
+        return open(self.baseFilename, 'ab')
 
     def emit(self, record):
         """
