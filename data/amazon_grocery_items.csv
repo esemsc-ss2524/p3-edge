@@ -1,167 +1,167 @@
 product_id,name,brand,category,price,unit,rating,reviews_count,prime_eligible,in_stock
-B08X6C9RMF,Organic Valley Organic Whole Milk,Organic Valley,Dairy,5.99,gallon,4.6,2847,True,True
-B07Y2GN7MH,Horizon Organic Whole Milk,Horizon,Dairy,4.89,half gallon,4.5,1532,True,True
-B09KL3M4NP,Great Value Whole Milk,Great Value,Dairy,3.49,gallon,4.3,892,False,True
-B08Y5K9LMN,Lactaid Lactose-Free Whole Milk,Lactaid,Dairy,5.29,half gallon,4.7,1245,True,True
-B07X8H5JKL,Fairlife Ultra-Filtered Milk,Fairlife,Dairy,4.99,52 oz,4.8,3421,True,True
-B09M2N3P4Q,Organic Valley 2% Reduced Fat Milk,Organic Valley,Dairy,5.49,gallon,4.5,1834,True,True
-B08Z9K8LMN,Silk Almond Milk Unsweetened,Silk,Dairy Alternative,3.99,half gallon,4.6,2156,True,True
-B09L3M4N5P,Oatly Oat Milk,Oatly,Dairy Alternative,4.49,64 oz,4.7,1892,True,True
-B07Y8H9JKL,So Delicious Coconut Milk,So Delicious,Dairy Alternative,3.79,half gallon,4.4,967,True,True
-B08X9Y8ZAB,Chobani Plain Greek Yogurt,Chobani,Dairy,5.99,32 oz,4.8,4532,True,True
-B09K2L3M4N,Fage Total Greek Yogurt,Fage,Dairy,6.49,35.3 oz,4.9,2834,True,True
-B07Z8Y9XCV,Yoplait Original Yogurt Variety Pack,Yoplait,Dairy,4.99,8 pack,4.5,1623,True,True
-B08Y9Z8ABC,Dannon Activia Probiotic Yogurt,Dannon,Dairy,4.79,12 pack,4.6,2145,True,True
-B09L3M4N5P,Organic Valley Large Brown Eggs,Organic Valley,Dairy,6.99,dozen,4.7,3421,True,True
-B08X9Y8ZAB,Eggland's Best Large White Eggs,Eggland's Best,Dairy,4.99,dozen,4.8,5234,True,True
-B07Y8H9JKL,Happy Egg Organic Free Range Eggs,Happy Egg,Dairy,7.49,dozen,4.9,1892,True,True
-B09M2N3P4Q,Great Value Large White Eggs,Great Value,Dairy,3.99,18 count,4.4,892,False,True
-B08Z9K8LMN,Vital Farms Pasture Raised Eggs,Vital Farms,Dairy,8.99,dozen,4.9,2734,True,True
-B09K2L3M4N,Land O Lakes Salted Butter,Land O Lakes,Dairy,5.49,1 lb,4.8,3156,True,True
-B07Y8H9JKL,Kerrygold Irish Butter,Kerrygold,Dairy,4.99,8 oz,4.9,4821,True,True
-B08X9Y8ZAB,Challenge Unsalted Butter,Challenge,Dairy,5.29,1 lb,4.7,1534,True,True
-B09L3M4N5P,Tillamook Medium Cheddar Cheese,Tillamook,Dairy,6.99,8 oz,4.8,2945,True,True
-B08Y9Z8ABC,Kraft Singles American Cheese,Kraft,Dairy,4.49,16 slices,4.3,1823,True,True
-B07Z8Y9XCV,Sargento Shredded Mozzarella,Sargento,Dairy,5.99,8 oz,4.7,2134,True,True
-B09M2N3P4Q,Cabot Sharp Cheddar Cheese,Cabot,Dairy,7.49,8 oz,4.9,1645,True,True
-B08X6C9RMF,Philadelphia Cream Cheese,Philadelphia,Dairy,3.99,8 oz,4.8,3821,True,True
-B09K2L3M4N,Nature's Own 100% Whole Wheat Bread,Nature's Own,Bakery,3.49,20 oz,4.6,2134,True,True
-B07Y8H9JKL,Dave's Killer Bread Organic,Dave's Killer Bread,Bakery,5.99,27 oz,4.9,5234,True,True
-B08X9Y8ZAB,Wonder Classic White Bread,Wonder,Bakery,2.99,20 oz,4.4,1523,True,True
-B09L3M4N5P,Pepperidge Farm Farmhouse Bread,Pepperidge Farm,Bakery,4.49,24 oz,4.7,1834,True,True
-B08Y9Z8ABC,Thomas' English Muffins,Thomas',Bakery,3.99,6 count,4.8,2945,True,True
-B07Z8Y9XCV,Sara Lee Artesano Bread,Sara Lee,Bakery,4.29,20 oz,4.6,1456,True,True
-B09M2N3P4Q,King's Hawaiian Sweet Rolls,King's Hawaiian,Bakery,5.49,12 pack,4.9,4321,True,True
-B08Z9K8LMN,Bagel Bites Cheese & Pepperoni,Bagel Bites,Frozen,5.99,9 count,4.5,892,True,True
-B09K2L3M4N,Tyson Boneless Skinless Chicken Breasts,Tyson,Meat,8.99,2.5 lb,4.6,2134,True,True
-B07Y8H9JKL,Perdue Chicken Breast Tenderloins,Perdue,Meat,7.99,1.5 lb,4.7,1523,True,True
-B08X9Y8ZAB,Foster Farms Organic Chicken Thighs,Foster Farms,Meat,9.49,2 lb,4.8,1834,True,True
-B09L3M4N5P,Bell & Evans Whole Chicken,Bell & Evans,Meat,12.99,4 lb,4.9,945,True,True
-B08Y9Z8ABC,Jennie-O Ground Turkey,Jennie-O,Meat,6.99,1 lb,4.6,1456,True,True
-B07Z8Y9XCV,Butterball Turkey Bacon,Butterball,Meat,5.49,12 oz,4.7,2134,True,True
-B09M2N3P4Q,Oscar Mayer Bacon,Oscar Mayer,Meat,7.99,16 oz,4.5,3421,True,True
-B08Z9K8LMN,Wright Brand Thick Sliced Bacon,Wright,Meat,8.49,24 oz,4.8,1834,True,True
-B09K2L3M4N,Johnsonville Breakfast Sausage,Johnsonville,Meat,5.99,12 oz,4.7,2145,True,True
-B07Y8H9JKL,Jimmy Dean Pork Sausage,Jimmy Dean,Meat,6.49,16 oz,4.6,2834,True,True
-B08X9Y8ZAB,Angus Beef Ground Chuck 80/20,Certified Angus Beef,Meat,10.99,1 lb,4.8,1523,True,True
-B09L3M4N5P,Laura's Lean Ground Beef 93/7,Laura's Lean,Meat,8.99,1 lb,4.7,892,True,True
-B08Y9Z8ABC,Ball Park Beef Franks,Ball Park,Meat,4.99,16 oz,4.5,2134,True,True
-B07Z8Y9XCV,Hebrew National Beef Franks,Hebrew National,Meat,6.49,12 oz,4.7,1834,True,True
-B09M2N3P4Q,Hillshire Farm Smoked Sausage,Hillshire Farm,Meat,5.99,14 oz,4.6,2456,True,True
-B08Z9K8LMN,Fresh Atlantic Salmon Fillet,Fresh Seafood,Seafood,14.99,1 lb,4.7,634,True,True
-B09K2L3M4N,Wild Caught Shrimp,Fresh Seafood,Seafood,12.99,1 lb,4.8,892,True,True
-B07Y8H9JKL,Tilapia Fillets,Fresh Seafood,Seafood,8.99,1 lb,4.5,456,True,True
-B08X9Y8ZAB,Organic Bananas,Fresh Produce,Produce,0.59,lb,4.6,5234,True,True
-B09L3M4N5P,Organic Fuji Apples,Fresh Produce,Produce,2.49,lb,4.7,3421,True,True
-B08Y9Z8ABC,Organic Gala Apples,Fresh Produce,Produce,2.29,lb,4.6,2834,True,True
-B07Z8Y9XCV,Hass Avocados,Fresh Produce,Produce,1.99,each,4.8,4532,True,True
-B09M2N3P4Q,Organic Baby Carrots,Fresh Produce,Produce,2.99,1 lb,4.5,1834,True,True
-B08Z9K8LMN,Organic Broccoli Crowns,Fresh Produce,Produce,3.49,lb,4.6,1245,True,True
-B09K2L3M4N,Organic Grape Tomatoes,Fresh Produce,Produce,3.99,1 pint,4.7,2145,True,True
-B07Y8H9JKL,Organic Baby Spinach,Fresh Produce,Produce,3.99,5 oz,4.8,2834,True,True
-B08X9Y8ZAB,Romaine Hearts,Fresh Produce,Produce,3.49,3 pack,4.6,1523,True,True
-B09L3M4N5P,Organic Spring Mix,Fresh Produce,Produce,4.49,5 oz,4.7,1834,True,True
-B08Y9Z8ABC,Organic Cucumber,Fresh Produce,Produce,1.49,each,4.5,892,True,True
-B07Z8Y9XCV,Red Bell Peppers,Fresh Produce,Produce,1.99,each,4.7,1245,True,True
-B09M2N3P4Q,Yellow Onions,Fresh Produce,Produce,1.29,lb,4.5,634,True,True
-B08Z9K8LMN,Organic Red Potatoes,Fresh Produce,Produce,4.99,5 lb,4.6,1456,True,True
-B09K2L3M4N,Organic Sweet Potatoes,Fresh Produce,Produce,2.49,lb,4.8,1834,True,True
-B07Y8H9JKL,Organic Strawberries,Fresh Produce,Produce,5.99,1 lb,4.7,2945,True,True
-B08X9Y8ZAB,Organic Blueberries,Fresh Produce,Produce,6.49,6 oz,4.8,3421,True,True
-B09L3M4N5P,Organic Raspberries,Fresh Produce,Produce,5.99,6 oz,4.7,1834,True,True
-B08Y9Z8ABC,Organic Blackberries,Fresh Produce,Produce,5.49,6 oz,4.6,1245,True,True
-B07Z8Y9XCV,Seedless Grapes,Fresh Produce,Produce,3.99,2 lb,4.7,2134,True,True
-B09M2N3P4Q,Organic Lemons,Fresh Produce,Produce,0.99,each,4.6,1523,True,True
-B08Z9K8LMN,Organic Limes,Fresh Produce,Produce,0.89,each,4.5,892,True,True
-B09K2L3M4N,Fresh Garlic,Fresh Produce,Produce,0.79,each,4.8,1834,True,True
-B07Y8H9JKL,Fresh Ginger Root,Fresh Produce,Produce,3.99,lb,4.7,634,True,True
-B08X9Y8ZAB,Barilla Penne Pasta,Barilla,Pantry,1.99,16 oz,4.7,3421,True,True
-B09L3M4N5P,De Cecco Spaghetti,De Cecco,Pantry,2.49,16 oz,4.8,2834,True,True
-B08Y9Z8ABC,Banza Chickpea Pasta,Banza,Pantry,3.99,8 oz,4.6,1834,True,True
-B07Z8Y9XCV,Barilla Lasagna Noodles,Barilla,Pantry,2.29,16 oz,4.7,2145,True,True
-B09M2N3P4Q,Ronzoni Rigatoni,Ronzoni,Pantry,1.89,16 oz,4.6,1523,True,True
-B08Z9K8LMN,Jasmine White Rice,Mahatma,Pantry,4.99,5 lb,4.7,2834,True,True
-B09K2L3M4N,Lundberg Organic Brown Rice,Lundberg,Pantry,6.99,2 lb,4.8,1834,True,True
-B07Y8H9JKL,Uncle Ben's Ready Rice,Uncle Ben's,Pantry,2.49,8.8 oz,4.5,2145,True,True
-B08X9Y8ZAB,Quaker Old Fashioned Oats,Quaker,Pantry,5.99,42 oz,4.8,4532,True,True
-B09L3M4N5P,Bob's Red Mill Steel Cut Oats,Bob's Red Mill,Pantry,7.99,24 oz,4.9,2834,True,True
-B08Y9Z8ABC,General Mills Cheerios,Cheerios,Pantry,4.99,18 oz,4.7,5234,True,True
-B07Z8Y9XCV,Kellogg's Frosted Flakes,Kellogg's,Pantry,4.49,24 oz,4.6,3421,True,True
-B09M2N3P4Q,Nature Valley Granola,Nature Valley,Pantry,5.49,16 oz,4.7,2145,True,True
-B08Z9K8LMN,Quaker Instant Oatmeal Variety Pack,Quaker,Pantry,6.99,15.1 oz,4.6,2834,True,True
-B09K2L3M4N,King Arthur All-Purpose Flour,King Arthur,Pantry,5.99,5 lb,4.9,3421,True,True
-B07Y8H9JKL,Gold Medal Bread Flour,Gold Medal,Pantry,4.99,5 lb,4.7,1834,True,True
-B08X9Y8ZAB,Bob's Red Mill Almond Flour,Bob's Red Mill,Pantry,12.99,16 oz,4.8,2145,True,True
-B09L3M4N5P,Domino Granulated Sugar,Domino,Pantry,3.99,4 lb,4.7,2834,True,True
-B08Y9Z8ABC,C&H Brown Sugar,C&H,Pantry,3.49,2 lb,4.6,1523,True,True
-B07Z8Y9XCV,Wholesome Organic Cane Sugar,Wholesome,Pantry,5.99,4 lb,4.8,1834,True,True
-B09M2N3P4Q,Morton Iodized Salt,Morton,Pantry,1.99,26 oz,4.7,2134,True,True
-B08Z9K8LMN,McCormick Black Pepper,McCormick,Pantry,4.99,3 oz,4.8,3421,True,True
-B09K2L3M4N,McCormick Garlic Powder,McCormick,Pantry,3.99,3.12 oz,4.7,2145,True,True
-B07Y8H9JKL,McCormick Italian Seasoning,McCormick,Pantry,3.49,0.75 oz,4.6,1834,True,True
-B08X9Y8ZAB,McCormick Cinnamon,McCormick,Pantry,4.49,2.37 oz,4.8,2834,True,True
-B09L3M4N5P,Rao's Marinara Sauce,Rao's,Pantry,8.99,24 oz,4.9,4532,True,True
-B08Y9Z8ABC,Prego Traditional Pasta Sauce,Prego,Pantry,2.99,24 oz,4.6,3421,True,True
-B07Z8Y9XCV,Bertolli Tomato & Basil Sauce,Bertolli,Pantry,3.49,24 oz,4.7,2145,True,True
-B09M2N3P4Q,Hunt's Tomato Sauce,Hunt's,Pantry,1.99,15 oz,4.5,1834,True,True
-B08Z9K8LMN,San Marzano Whole Peeled Tomatoes,Cento,Pantry,4.99,28 oz,4.9,2834,True,True
-B09K2L3M4N,Muir Glen Organic Diced Tomatoes,Muir Glen,Pantry,2.49,14.5 oz,4.8,1834,True,True
-B07Y8H9JKL,Classico Alfredo Sauce,Classico,Pantry,3.99,15 oz,4.6,2145,True,True
-B08X9Y8ZAB,Heinz Tomato Ketchup,Heinz,Condiments,3.49,32 oz,4.7,5234,True,True
-B09L3M4N5P,French's Yellow Mustard,French's,Condiments,2.49,14 oz,4.6,2834,True,True
-B08Y9Z8ABC,Hellmann's Real Mayonnaise,Hellmann's,Condiments,5.99,30 oz,4.8,4532,True,True
-B07Z8Y9XCV,Sir Kensington's Avocado Oil Mayo,Sir Kensington's,Condiments,7.99,16 oz,4.7,1834,True,True
-B09M2N3P4Q,Hidden Valley Ranch Dressing,Hidden Valley,Condiments,4.49,24 oz,4.7,3421,True,True
-B08Z9K8LMN,Ken's Steak House Italian Dressing,Ken's,Condiments,3.99,16 oz,4.6,2145,True,True
-B09K2L3M4N,Primal Kitchen Caesar Dressing,Primal Kitchen,Condiments,8.99,8 oz,4.8,1834,True,True
-B07Y8H9JKL,Cholula Hot Sauce,Cholula,Condiments,4.49,12 oz,4.9,3421,True,True
-B08X9Y8ZAB,Tabasco Original Red Sauce,Tabasco,Condiments,3.99,5 oz,4.8,4532,True,True
-B09L3M4N5P,Sriracha Hot Chili Sauce,Huy Fong,Condiments,5.49,17 oz,4.9,5234,True,True
-B08Y9Z8ABC,Sweet Baby Ray's BBQ Sauce,Sweet Baby Ray's,Condiments,3.49,18 oz,4.7,3421,True,True
-B07Z8Y9XCV,Stubb's Original BBQ Sauce,Stubb's,Condiments,4.99,18 oz,4.8,2145,True,True
-B09M2N3P4Q,Kikkoman Soy Sauce,Kikkoman,Condiments,4.49,15 oz,4.8,4532,True,True
-B08Z9K8LMN,La Choy Soy Sauce,La Choy,Condiments,2.99,10 oz,4.5,1834,True,True
-B09K2L3M4N,Annie's Organic Ketchup,Annie's,Condiments,4.99,24 oz,4.7,1523,True,True
-B07Y8H9JKL,Jif Creamy Peanut Butter,Jif,Pantry,4.99,28 oz,4.8,5234,True,True
-B08X9Y8ZAB,Skippy Natural Peanut Butter,Skippy,Pantry,5.49,26.5 oz,4.7,3421,True,True
-B09L3M4N5P,Justin's Almond Butter,Justin's,Pantry,12.99,16 oz,4.9,2834,True,True
-B08Y9Z8ABC,Nutella Hazelnut Spread,Nutella,Pantry,6.99,26.5 oz,4.9,6234,True,True
-B07Z8Y9XCV,Smucker's Strawberry Jam,Smucker's,Pantry,4.49,18 oz,4.7,2834,True,True
-B09M2N3P4Q,Welch's Grape Jelly,Welch's,Pantry,3.99,20 oz,4.6,2145,True,True
-B08Z9K8LMN,Bonne Maman Raspberry Preserves,Bonne Maman,Pantry,5.99,13 oz,4.8,1834,True,True
-B09K2L3M4N,La Croix Sparkling Water Variety,La Croix,Beverages,5.99,12 pack,4.7,4532,True,True
-B07Y8H9JKL,Perrier Sparkling Mineral Water,Perrier,Beverages,6.49,8 pack,4.8,2834,True,True
-B08X9Y8ZAB,Coca-Cola Classic,Coca-Cola,Beverages,6.99,12 pack,4.6,5234,True,True
-B09L3M4N5P,Pepsi Cola,Pepsi,Beverages,6.49,12 pack,4.5,4321,True,True
-B08Y9Z8ABC,Sprite Lemon-Lime Soda,Sprite,Beverages,6.49,12 pack,4.6,3421,True,True
-B07Z8Y9XCV,Dr Pepper,Dr Pepper,Beverages,6.99,12 pack,4.7,3821,True,True
-B09M2N3P4Q,Tropicana Orange Juice,Tropicana,Beverages,5.99,52 oz,4.7,3421,True,True
-B08Z9K8LMN,Simply Lemonade,Simply,Beverages,4.49,52 oz,4.8,2834,True,True
-B09K2L3M4N,Ocean Spray Cranberry Juice,Ocean Spray,Beverages,5.49,64 oz,4.6,2145,True,True
-B07Y8H9JKL,Starbucks Pike Place Coffee,Starbucks,Beverages,9.99,20 oz,4.8,5234,True,True
-B08X9Y8ZAB,Folgers Classic Roast Coffee,Folgers,Beverages,11.99,30.5 oz,4.6,4321,True,True
-B09L3M4N5P,Dunkin' Original Blend Coffee,Dunkin',Beverages,8.99,12 oz,4.7,3421,True,True
-B08Y9Z8ABC,Starbucks House Blend K-Cups,Starbucks,Beverages,12.99,16 count,4.7,2834,True,True
-B07Z8Y9XCV,Green Mountain Breakfast Blend K-Cups,Green Mountain,Beverages,13.99,24 count,4.8,3421,True,True
-B09M2N3P4Q,Twinings English Breakfast Tea,Twinings,Beverages,5.99,20 count,4.8,2834,True,True
-B08Z9K8LMN,Lipton Black Tea Bags,Lipton,Beverages,4.49,100 count,4.6,3421,True,True
-B09K2L3M4N,Celestial Seasonings Herbal Tea,Celestial Seasonings,Beverages,4.99,20 count,4.7,2145,True,True
-B07Y8H9JKL,Lay's Classic Potato Chips,Lay's,Snacks,4.99,13 oz,4.7,5234,True,True
-B08X9Y8ZAB,Ruffles Cheddar & Sour Cream,Ruffles,Snacks,4.49,8.5 oz,4.6,2834,True,True
-B09L3M4N5P,Doritos Nacho Cheese,Doritos,Snacks,4.99,11.5 oz,4.8,6234,True,True
-B08Y9Z8ABC,Tostitos Original Restaurant Style,Tostitos,Snacks,4.49,13 oz,4.7,3421,True,True
-B07Z8Y9XCV,Cheetos Crunchy,Cheetos,Snacks,4.49,8.5 oz,4.6,4321,True,True
-B09M2N3P4Q,Pringles Original,Pringles,Snacks,2.49,5.5 oz,4.7,3821,True,True
-B08Z9K8LMN,Oreo Original Cookies,Oreo,Snacks,4.99,14.3 oz,4.9,7234,True,True
-B09K2L3M4N,Chips Ahoy! Original Cookies,Chips Ahoy,Snacks,4.49,13 oz,4.7,4532,True,True
-B07Y8H9JKL,Nabisco Wheat Thins,Nabisco,Snacks,3.99,9.1 oz,4.6,2834,True,True
-B08X9Y8ZAB,Triscuit Original Crackers,Triscuit,Snacks,4.49,9 oz,4.7,2145,True,True
-B09L3M4N5P,Ritz Original Crackers,Ritz,Snacks,3.99,13.7 oz,4.8,4532,True,True
-B08Y9Z8ABC,Goldfish Cheddar Crackers,Goldfish,Snacks,3.49,30 oz,4.7,5234,True,True
-B07Z8Y9XCV,Kind Dark Chocolate Nuts & Sea Salt,Kind,Snacks,6.99,12 count,4.8,3421,True,True
-B09M2N3P4Q,Nature Valley Crunchy Granola Bars,Nature Valley,Snacks,5.49,18 count,4.7,4321,True,True
-B08Z9K8LMN,Clif Bar Chocolate Chip,Clif,Snacks,11.99,12 count,4.8,2834,True,True
-B09K2L3M4N,Ben & Jerry's Half Baked Ice Cream,Ben & Jerry's,Frozen,5.99,1 pint,4.9,6234,True,True
-B07Y8H9JKL,Haagen-Dazs Vanilla Ice Cream,Haagen-Dazs,Frozen,5.49,14 oz,4.9,4532,True,True
-B08X9Y8ZAB,Breyers Natural Vanilla Ice Cream,Breyers,Frozen,4.99,48 oz,4.6,3421,True,True
-B09L3M4N5P,Talenti Gelato Sea Salt Caramel,Talenti,Frozen,6.49,1 pint,4.9,3821,True,True
+a8f7b06f-e2f9-42b7-9e5a-225faa474a73,Organic Valley Organic Whole Milk,Organic Valley,Dairy,5.99,gallon,4.6,2847,True,True
+35d49538-2072-41ed-bbf8-9512d82a00dc,Horizon Organic Whole Milk,Horizon,Dairy,4.89,half gallon,4.5,1532,True,True
+77133af2-a97b-415b-b981-2739e7427c7c,Great Value Whole Milk,Great Value,Dairy,3.49,gallon,4.3,892,False,True
+876059ba-4f7b-42e1-a7a4-0ffa26e9f369,Lactaid Lactose-Free Whole Milk,Lactaid,Dairy,5.29,half gallon,4.7,1245,True,True
+3e826795-b6f0-4f2e-bddd-d8cfe80b196f,Fairlife Ultra-Filtered Milk,Fairlife,Dairy,4.99,52 oz,4.8,3421,True,True
+323daf51-9ef8-43e8-ae8c-969da9ad659d,Organic Valley 2% Reduced Fat Milk,Organic Valley,Dairy,5.49,gallon,4.5,1834,True,True
+d469af81-9020-46ef-90bf-04d1f69b56a9,Silk Almond Milk Unsweetened,Silk,Dairy Alternative,3.99,half gallon,4.6,2156,True,True
+d8f10c71-a3de-4df8-ba3a-705f025b25d0,Oatly Oat Milk,Oatly,Dairy Alternative,4.49,64 oz,4.7,1892,True,True
+d0a5806f-5229-4f86-aa78-4feb4ca60476,So Delicious Coconut Milk,So Delicious,Dairy Alternative,3.79,half gallon,4.4,967,True,True
+4a173304-cc8c-4249-9b91-fcfef8bc037c,Chobani Plain Greek Yogurt,Chobani,Dairy,5.99,32 oz,4.8,4532,True,True
+3c5ac448-c841-437b-8a1f-c9108757f0a2,Fage Total Greek Yogurt,Fage,Dairy,6.49,35.3 oz,4.9,2834,True,True
+8459a912-6f22-4025-a593-af5bf172fe66,Yoplait Original Yogurt Variety Pack,Yoplait,Dairy,4.99,8 pack,4.5,1623,True,True
+2908b4eb-dc57-4055-a725-ee6d47980f89,Dannon Activia Probiotic Yogurt,Dannon,Dairy,4.79,12 pack,4.6,2145,True,True
+c2227074-33fc-4e28-ac1c-9e2f6bd9b5be,Organic Valley Large Brown Eggs,Organic Valley,Dairy,6.99,dozen,4.7,3421,True,True
+11ffd602-0c18-4bba-b773-2a68f5626dd2,Eggland's Best Large White Eggs,Eggland's Best,Dairy,4.99,dozen,4.8,5234,True,True
+97853f88-298e-4666-98eb-abc270290de3,Happy Egg Organic Free Range Eggs,Happy Egg,Dairy,7.49,dozen,4.9,1892,True,True
+44a6d134-85e8-4efc-aaca-2f1a021b3d7a,Great Value Large White Eggs,Great Value,Dairy,3.99,18 count,4.4,892,False,True
+31315436-d4e6-4625-a362-78944120de4d,Vital Farms Pasture Raised Eggs,Vital Farms,Dairy,8.99,dozen,4.9,2734,True,True
+a4130813-d4fe-4519-8a04-98afa5c45c7a,Land O Lakes Salted Butter,Land O Lakes,Dairy,5.49,1 lb,4.8,3156,True,True
+872497fd-3288-4ef2-803f-ba75c8b157d5,Kerrygold Irish Butter,Kerrygold,Dairy,4.99,8 oz,4.9,4821,True,True
+df3930ab-5ebf-40be-bbb4-d05c381daee6,Challenge Unsalted Butter,Challenge,Dairy,5.29,1 lb,4.7,1534,True,True
+6702bc02-aa3f-497d-820a-0f51aac20047,Tillamook Medium Cheddar Cheese,Tillamook,Dairy,6.99,8 oz,4.8,2945,True,True
+a5476691-cfd7-47cd-a7e1-0e97a17a24b4,Kraft Singles American Cheese,Kraft,Dairy,4.49,16 slices,4.3,1823,True,True
+6d605415-1937-4ed4-a00d-6b5f8f99fa02,Sargento Shredded Mozzarella,Sargento,Dairy,5.99,8 oz,4.7,2134,True,True
+a031728b-5689-4fe1-8913-73a22038c959,Cabot Sharp Cheddar Cheese,Cabot,Dairy,7.49,8 oz,4.9,1645,True,True
+9b2cda86-a524-449a-863e-39cb2c7c66b3,Philadelphia Cream Cheese,Philadelphia,Dairy,3.99,8 oz,4.8,3821,True,True
+90b948ff-b8eb-402b-90df-df4b0edb585e,Nature's Own 100% Whole Wheat Bread,Nature's Own,Bakery,3.49,20 oz,4.6,2134,True,True
+403e0b2b-7c3b-4c50-9725-d866023680c2,Dave's Killer Bread Organic,Dave's Killer Bread,Bakery,5.99,27 oz,4.9,5234,True,True
+d55b9ad7-8591-4267-8a04-b3313047d103,Wonder Classic White Bread,Wonder,Bakery,2.99,20 oz,4.4,1523,True,True
+af2f3902-eab9-443d-a543-aff65c35c508,Pepperidge Farm Farmhouse Bread,Pepperidge Farm,Bakery,4.49,24 oz,4.7,1834,True,True
+fc15ed9b-8da0-4499-99e0-46890f4bd163,Thomas' English Muffins,Thomas',Bakery,3.99,6 count,4.8,2945,True,True
+503c3348-b7c5-4e8e-9bde-f8abe9a25a54,Sara Lee Artesano Bread,Sara Lee,Bakery,4.29,20 oz,4.6,1456,True,True
+a8635f0d-81ea-4a69-ad76-146938a14556,King's Hawaiian Sweet Rolls,King's Hawaiian,Bakery,5.49,12 pack,4.9,4321,True,True
+240273c0-b734-405d-a990-c552f98fe171,Bagel Bites Cheese & Pepperoni,Bagel Bites,Frozen,5.99,9 count,4.5,892,True,True
+3f855619-cf2e-4fb8-8f13-fc3210aada7f,Tyson Boneless Skinless Chicken Breasts,Tyson,Meat,8.99,2.5 lb,4.6,2134,True,True
+fc2c2115-503d-4d30-abbc-169971d64738,Perdue Chicken Breast Tenderloins,Perdue,Meat,7.99,1.5 lb,4.7,1523,True,True
+42d666ac-e83a-4a2d-8230-6237dd0f4f7d,Foster Farms Organic Chicken Thighs,Foster Farms,Meat,9.49,2 lb,4.8,1834,True,True
+55c7303e-8318-47ee-9fa7-8fc83f47270c,Bell & Evans Whole Chicken,Bell & Evans,Meat,12.99,4 lb,4.9,945,True,True
+aca1132a-6351-4098-a0f3-d3bd51f24b46,Jennie-O Ground Turkey,Jennie-O,Meat,6.99,1 lb,4.6,1456,True,True
+c193abd0-b23d-43c4-ac56-286955b6a908,Butterball Turkey Bacon,Butterball,Meat,5.49,12 oz,4.7,2134,True,True
+2a12e4ab-f7df-4b55-af47-3ea521e77c92,Oscar Mayer Bacon,Oscar Mayer,Meat,7.99,16 oz,4.5,3421,True,True
+ece5010d-1e41-4261-b1cf-76c39c78d48a,Wright Brand Thick Sliced Bacon,Wright,Meat,8.49,24 oz,4.8,1834,True,True
+94e8527c-6d6c-4994-873f-4d72efe66a1d,Johnsonville Breakfast Sausage,Johnsonville,Meat,5.99,12 oz,4.7,2145,True,True
+190b7a7c-0f20-4043-9aec-83951fc3a5d8,Jimmy Dean Pork Sausage,Jimmy Dean,Meat,6.49,16 oz,4.6,2834,True,True
+a4088164-9d39-4907-af09-9010ddf3f005,Angus Beef Ground Chuck 80/20,Certified Angus Beef,Meat,10.99,1 lb,4.8,1523,True,True
+5bfb4791-2b24-41f2-8e6a-e23b9ddfc86f,Laura's Lean Ground Beef 93/7,Laura's Lean,Meat,8.99,1 lb,4.7,892,True,True
+0edf0ec4-e0d5-41dd-a750-8e93ec8f53b9,Ball Park Beef Franks,Ball Park,Meat,4.99,16 oz,4.5,2134,True,True
+2d3bc914-65d9-4b04-99d1-e51e6a01f2e8,Hebrew National Beef Franks,Hebrew National,Meat,6.49,12 oz,4.7,1834,True,True
+6dc6b920-85e0-4923-b2da-4db98480a3ac,Hillshire Farm Smoked Sausage,Hillshire Farm,Meat,5.99,14 oz,4.6,2456,True,True
+70ef07ec-5f5b-43fe-a5d5-2c6dd17c26df,Fresh Atlantic Salmon Fillet,Fresh Seafood,Seafood,14.99,1 lb,4.7,634,True,True
+382b8db0-be73-4bc1-971e-b7cf049aec4e,Wild Caught Shrimp,Fresh Seafood,Seafood,12.99,1 lb,4.8,892,True,True
+866c2234-9a80-4374-bb0c-4e2c568102d0,Tilapia Fillets,Fresh Seafood,Seafood,8.99,1 lb,4.5,456,True,True
+732a3b4b-1a7a-417c-a082-cde3fefbad44,Organic Bananas,Fresh Produce,Produce,0.59,lb,4.6,5234,True,True
+c4ecf1b0-0c07-458e-840b-5bb17f574fef,Organic Fuji Apples,Fresh Produce,Produce,2.49,lb,4.7,3421,True,True
+eecd6cc1-f30e-4fa9-aa35-a14d66f7584d,Organic Gala Apples,Fresh Produce,Produce,2.29,lb,4.6,2834,True,True
+d2524bc1-d4c1-40eb-90a6-0da95e33e803,Hass Avocados,Fresh Produce,Produce,1.99,each,4.8,4532,True,True
+2838b3db-3506-439b-8e02-230b06584087,Organic Baby Carrots,Fresh Produce,Produce,2.99,1 lb,4.5,1834,True,True
+a7d9e808-a4e9-4d42-9242-bc0a05f0d82c,Organic Broccoli Crowns,Fresh Produce,Produce,3.49,lb,4.6,1245,True,True
+3bf6d91c-35d3-454f-afe8-13f33b5c63eb,Organic Grape Tomatoes,Fresh Produce,Produce,3.99,1 pint,4.7,2145,True,True
+bc99b2e8-1eaf-430e-891c-005f9b6e4f4d,Organic Baby Spinach,Fresh Produce,Produce,3.99,5 oz,4.8,2834,True,True
+663cace3-ef28-49e3-88a4-cd0e2788218e,Romaine Hearts,Fresh Produce,Produce,3.49,3 pack,4.6,1523,True,True
+6415e7f1-ea56-402a-b5eb-9d5503af1fa7,Organic Spring Mix,Fresh Produce,Produce,4.49,5 oz,4.7,1834,True,True
+03c956ab-1468-4baf-8d3e-26a907521301,Organic Cucumber,Fresh Produce,Produce,1.49,each,4.5,892,True,True
+8484ff3a-550a-4bd7-b960-232931c35667,Red Bell Peppers,Fresh Produce,Produce,1.99,each,4.7,1245,True,True
+3b7aa1ad-a903-42dd-927e-7f94a5af317b,Yellow Onions,Fresh Produce,Produce,1.29,lb,4.5,634,True,True
+942b2e00-8c76-4121-a924-6d37dda96144,Organic Red Potatoes,Fresh Produce,Produce,4.99,5 lb,4.6,1456,True,True
+d78bfed6-4ba7-4898-a7bd-76e573a27045,Organic Sweet Potatoes,Fresh Produce,Produce,2.49,lb,4.8,1834,True,True
+3640afe1-1aa6-466f-9c5e-762456e4a475,Organic Strawberries,Fresh Produce,Produce,5.99,1 lb,4.7,2945,True,True
+a088c96e-8cbc-49a4-bd7c-d6fade7f957c,Organic Blueberries,Fresh Produce,Produce,6.49,6 oz,4.8,3421,True,True
+eac45fc5-76ef-4fac-bfbd-a070caabb516,Organic Raspberries,Fresh Produce,Produce,5.99,6 oz,4.7,1834,True,True
+ff1d89ef-a54c-45f7-8bd9-7b07b6021212,Organic Blackberries,Fresh Produce,Produce,5.49,6 oz,4.6,1245,True,True
+36ec8f0f-9da0-4eb1-929c-78531fecc523,Seedless Grapes,Fresh Produce,Produce,3.99,2 lb,4.7,2134,True,True
+2e123204-a777-418d-a8d6-b9b7aaefea66,Organic Lemons,Fresh Produce,Produce,0.99,each,4.6,1523,True,True
+3e168190-1472-4363-8a1d-f9735b770228,Organic Limes,Fresh Produce,Produce,0.89,each,4.5,892,True,True
+58440cb4-e13c-4a68-ba8c-19c1c0f021dc,Fresh Garlic,Fresh Produce,Produce,0.79,each,4.8,1834,True,True
+719ba2dd-9576-415f-9f50-abd5c4248639,Fresh Ginger Root,Fresh Produce,Produce,3.99,lb,4.7,634,True,True
+bea88ba3-2742-4111-9e30-c0e30f78c34d,Barilla Penne Pasta,Barilla,Pantry,1.99,16 oz,4.7,3421,True,True
+03e866e9-bdc0-48aa-bb52-e229c777f003,De Cecco Spaghetti,De Cecco,Pantry,2.49,16 oz,4.8,2834,True,True
+0b358538-188f-4f00-abbd-2c9c858d068e,Banza Chickpea Pasta,Banza,Pantry,3.99,8 oz,4.6,1834,True,True
+8e4f23af-9a35-4c8b-aace-c74cc9b7befb,Barilla Lasagna Noodles,Barilla,Pantry,2.29,16 oz,4.7,2145,True,True
+45b52fb6-0a01-4c7e-9fb0-151cd7e6c88e,Ronzoni Rigatoni,Ronzoni,Pantry,1.89,16 oz,4.6,1523,True,True
+77d1bc18-7c78-4c13-b89b-d7eb0b47ec41,Jasmine White Rice,Mahatma,Pantry,4.99,5 lb,4.7,2834,True,True
+b43ebefb-4bd8-4f88-8f16-08d046fcdb9e,Lundberg Organic Brown Rice,Lundberg,Pantry,6.99,2 lb,4.8,1834,True,True
+d620563f-3d2f-4ba0-91a7-a8ab7368953c,Uncle Ben's Ready Rice,Uncle Ben's,Pantry,2.49,8.8 oz,4.5,2145,True,True
+088c2b09-fe52-4b16-af26-4dc80455efe3,Quaker Old Fashioned Oats,Quaker,Pantry,5.99,42 oz,4.8,4532,True,True
+2ba13301-96a4-4ce4-bdbb-847775696ffe,Bob's Red Mill Steel Cut Oats,Bob's Red Mill,Pantry,7.99,24 oz,4.9,2834,True,True
+dc619413-5e9e-47c2-97d8-982d9dae548e,General Mills Cheerios,Cheerios,Pantry,4.99,18 oz,4.7,5234,True,True
+66fab701-3e8e-484a-8b2e-743a403ce38a,Kellogg's Frosted Flakes,Kellogg's,Pantry,4.49,24 oz,4.6,3421,True,True
+9cf8b040-50f4-4fa9-a2fc-e86407e0b8c0,Nature Valley Granola,Nature Valley,Pantry,5.49,16 oz,4.7,2145,True,True
+e098788c-7292-46a5-98ab-aa9c4c413636,Quaker Instant Oatmeal Variety Pack,Quaker,Pantry,6.99,15.1 oz,4.6,2834,True,True
+187f002d-99b4-4186-830b-7f208da11818,King Arthur All-Purpose Flour,King Arthur,Pantry,5.99,5 lb,4.9,3421,True,True
+bb7929fa-3fa5-4fe3-a27b-742fb62abca1,Gold Medal Bread Flour,Gold Medal,Pantry,4.99,5 lb,4.7,1834,True,True
+6c7af2dc-29e5-469f-bcb2-f2cf4cc12a10,Bob's Red Mill Almond Flour,Bob's Red Mill,Pantry,12.99,16 oz,4.8,2145,True,True
+8998b229-53c4-49db-9569-d3eb6d996ec3,Domino Granulated Sugar,Domino,Pantry,3.99,4 lb,4.7,2834,True,True
+0304d555-e874-466c-8f48-b5e889f44cde,C&H Brown Sugar,C&H,Pantry,3.49,2 lb,4.6,1523,True,True
+1ddad9a3-2767-4d45-a523-227c3185c0b6,Wholesome Organic Cane Sugar,Wholesome,Pantry,5.99,4 lb,4.8,1834,True,True
+d8909c59-66dc-416a-ae22-8734cfde9ece,Morton Iodized Salt,Morton,Pantry,1.99,26 oz,4.7,2134,True,True
+f2c373bc-ba54-4cac-8d6e-f880f23cf975,McCormick Black Pepper,McCormick,Pantry,4.99,3 oz,4.8,3421,True,True
+c4871602-ee70-41aa-97fa-8bb9e3f8db82,McCormick Garlic Powder,McCormick,Pantry,3.99,3.12 oz,4.7,2145,True,True
+6dd3738a-4d19-4493-b675-f890d2914c8b,McCormick Italian Seasoning,McCormick,Pantry,3.49,0.75 oz,4.6,1834,True,True
+7cdec879-4505-42ed-82be-e1c0fa52abfe,McCormick Cinnamon,McCormick,Pantry,4.49,2.37 oz,4.8,2834,True,True
+96eb965c-3e7c-49ef-9838-18438c56f9ad,Rao's Marinara Sauce,Rao's,Pantry,8.99,24 oz,4.9,4532,True,True
+7b19f4c1-a870-43cc-8850-4352170ef558,Prego Traditional Pasta Sauce,Prego,Pantry,2.99,24 oz,4.6,3421,True,True
+5b44c0c9-a5ac-4e3c-bdf3-1e81a01f1603,Bertolli Tomato & Basil Sauce,Bertolli,Pantry,3.49,24 oz,4.7,2145,True,True
+2f161037-71a5-46c3-8252-e9af9392006f,Hunt's Tomato Sauce,Hunt's,Pantry,1.99,15 oz,4.5,1834,True,True
+580d0b3e-d422-48c0-b368-f6cb17c730ae,San Marzano Whole Peeled Tomatoes,Cento,Pantry,4.99,28 oz,4.9,2834,True,True
+f64af59a-e8de-4f65-8553-e83ff57dbb7f,Muir Glen Organic Diced Tomatoes,Muir Glen,Pantry,2.49,14.5 oz,4.8,1834,True,True
+b9d5c146-1f4e-4cc9-87ca-9568b05eb4ab,Classico Alfredo Sauce,Classico,Pantry,3.99,15 oz,4.6,2145,True,True
+ab6fa5b7-4e30-4cca-ae8c-a90f1e62133a,Heinz Tomato Ketchup,Heinz,Condiments,3.49,32 oz,4.7,5234,True,True
+5d0c18d6-77d0-4bd8-a9c6-038d49531bde,French's Yellow Mustard,French's,Condiments,2.49,14 oz,4.6,2834,True,True
+2f6fe5f2-0784-493b-82ac-7a3af5f8bedf,Hellmann's Real Mayonnaise,Hellmann's,Condiments,5.99,30 oz,4.8,4532,True,True
+c617fc77-40c0-4d94-b525-08af3f3d6b69,Sir Kensington's Avocado Oil Mayo,Sir Kensington's,Condiments,7.99,16 oz,4.7,1834,True,True
+4ff07dff-8bf5-48ee-9d65-2239390cf2c4,Hidden Valley Ranch Dressing,Hidden Valley,Condiments,4.49,24 oz,4.7,3421,True,True
+a3284ec5-c78a-40d9-81f0-30ce2e931b6a,Ken's Steak House Italian Dressing,Ken's,Condiments,3.99,16 oz,4.6,2145,True,True
+5d0fbc0d-287c-496c-bf9a-26f99af60908,Primal Kitchen Caesar Dressing,Primal Kitchen,Condiments,8.99,8 oz,4.8,1834,True,True
+9e1f265c-2c79-42e5-a31b-fb513195ccb4,Cholula Hot Sauce,Cholula,Condiments,4.49,12 oz,4.9,3421,True,True
+ba41f57c-19d4-46b1-9c63-ff98dd0299f8,Tabasco Original Red Sauce,Tabasco,Condiments,3.99,5 oz,4.8,4532,True,True
+c285315f-1383-44aa-8e09-61105613a9a5,Sriracha Hot Chili Sauce,Huy Fong,Condiments,5.49,17 oz,4.9,5234,True,True
+3a6a08cb-52cf-4323-b921-1070bdcf6b96,Sweet Baby Ray's BBQ Sauce,Sweet Baby Ray's,Condiments,3.49,18 oz,4.7,3421,True,True
+2b4d7e4c-611f-4662-98db-9d3569230791,Stubb's Original BBQ Sauce,Stubb's,Condiments,4.99,18 oz,4.8,2145,True,True
+bd8ab52c-5c33-4022-90ad-fc9c2c00ec30,Kikkoman Soy Sauce,Kikkoman,Condiments,4.49,15 oz,4.8,4532,True,True
+f0a42bb9-3bc4-421f-a400-7d3993974940,La Choy Soy Sauce,La Choy,Condiments,2.99,10 oz,4.5,1834,True,True
+41e7096d-a955-4441-8fbd-8ba51997a7a1,Annie's Organic Ketchup,Annie's,Condiments,4.99,24 oz,4.7,1523,True,True
+6b4354a9-a663-4bac-af0e-9b727eca386c,Jif Creamy Peanut Butter,Jif,Pantry,4.99,28 oz,4.8,5234,True,True
+fe41037d-8ce0-4b77-9e4a-182f06c3fe82,Skippy Natural Peanut Butter,Skippy,Pantry,5.49,26.5 oz,4.7,3421,True,True
+4b7bf583-f349-40c2-b98c-57bc5040a205,Justin's Almond Butter,Justin's,Pantry,12.99,16 oz,4.9,2834,True,True
+ed4b4ec6-bf31-46da-986b-250d4cca793e,Nutella Hazelnut Spread,Nutella,Pantry,6.99,26.5 oz,4.9,6234,True,True
+3ed04f4c-0f9e-4fbb-82a0-4e63b426de4b,Smucker's Strawberry Jam,Smucker's,Pantry,4.49,18 oz,4.7,2834,True,True
+e7eed9a4-5fe9-4d1d-b53f-df4135a0bfb0,Welch's Grape Jelly,Welch's,Pantry,3.99,20 oz,4.6,2145,True,True
+1ca16b70-530f-4233-a287-c5468563a28a,Bonne Maman Raspberry Preserves,Bonne Maman,Pantry,5.99,13 oz,4.8,1834,True,True
+6c7fd4cf-2ed5-40ec-90da-be8cad8b24f3,La Croix Sparkling Water Variety,La Croix,Beverages,5.99,12 pack,4.7,4532,True,True
+b249a3f4-7651-4c03-aed5-d9ef6d47914e,Perrier Sparkling Mineral Water,Perrier,Beverages,6.49,8 pack,4.8,2834,True,True
+e447ba7a-c738-471c-9748-a3054539cc39,Coca-Cola Classic,Coca-Cola,Beverages,6.99,12 pack,4.6,5234,True,True
+bd916c6d-d5a1-4e8c-ba2d-c406575df121,Pepsi Cola,Pepsi,Beverages,6.49,12 pack,4.5,4321,True,True
+1848af38-a36f-4af1-b6ba-7b57d5f4a336,Sprite Lemon-Lime Soda,Sprite,Beverages,6.49,12 pack,4.6,3421,True,True
+abd3b4e3-40b5-4c65-be0d-b06daeba298a,Dr Pepper,Dr Pepper,Beverages,6.99,12 pack,4.7,3821,True,True
+efa40b7d-0491-4032-8ebb-ced16a1103aa,Tropicana Orange Juice,Tropicana,Beverages,5.99,52 oz,4.7,3421,True,True
+671248c2-1766-4e9d-b704-90d8da4b6300,Simply Lemonade,Simply,Beverages,4.49,52 oz,4.8,2834,True,True
+010bb17a-a39e-488b-ba6c-d4aa564503cd,Ocean Spray Cranberry Juice,Ocean Spray,Beverages,5.49,64 oz,4.6,2145,True,True
+a075151a-9f31-4fd3-8cfb-d52b8f2cbeec,Starbucks Pike Place Coffee,Starbucks,Beverages,9.99,20 oz,4.8,5234,True,True
+6c0f42d5-b44f-4e27-994d-d97126acb7d1,Folgers Classic Roast Coffee,Folgers,Beverages,11.99,30.5 oz,4.6,4321,True,True
+f98d01a4-8c5a-4e56-9f56-09e2c6772c0b,Dunkin' Original Blend Coffee,Dunkin',Beverages,8.99,12 oz,4.7,3421,True,True
+ee2fb0fd-6a89-4e07-a7d2-83983d2227cc,Starbucks House Blend K-Cups,Starbucks,Beverages,12.99,16 count,4.7,2834,True,True
+2cb80d41-92a2-4f5d-9a9b-a4f02514c79f,Green Mountain Breakfast Blend K-Cups,Green Mountain,Beverages,13.99,24 count,4.8,3421,True,True
+29910d20-bf2f-4196-a2e3-cd93d039f216,Twinings English Breakfast Tea,Twinings,Beverages,5.99,20 count,4.8,2834,True,True
+269e2625-b77a-4460-a10a-fc6a051c0ae5,Lipton Black Tea Bags,Lipton,Beverages,4.49,100 count,4.6,3421,True,True
+4aaad46b-952b-49cf-a9f4-b2c9158d512e,Celestial Seasonings Herbal Tea,Celestial Seasonings,Beverages,4.99,20 count,4.7,2145,True,True
+be98641a-d487-4c14-a14e-551c7fa9f1a6,Lay's Classic Potato Chips,Lay's,Snacks,4.99,13 oz,4.7,5234,True,True
+0897041d-d507-4b98-9e47-9e438bf4d64b,Ruffles Cheddar & Sour Cream,Ruffles,Snacks,4.49,8.5 oz,4.6,2834,True,True
+18c6a407-82a2-4915-a277-0067feafa16c,Doritos Nacho Cheese,Doritos,Snacks,4.99,11.5 oz,4.8,6234,True,True
+4510eb03-3f5c-4db7-ae80-c4eee66211a1,Tostitos Original Restaurant Style,Tostitos,Snacks,4.49,13 oz,4.7,3421,True,True
+e0ccf57f-59e3-4cec-9470-6e907097ee14,Cheetos Crunchy,Cheetos,Snacks,4.49,8.5 oz,4.6,4321,True,True
+64b97f2b-15ef-4913-b9e6-2c5389ee53dc,Pringles Original,Pringles,Snacks,2.49,5.5 oz,4.7,3821,True,True
+edb817b7-38d1-4442-aa5a-1ab8ec89729c,Oreo Original Cookies,Oreo,Snacks,4.99,14.3 oz,4.9,7234,True,True
+1a1d1f57-f837-4c74-936d-d7b6c0a67190,Chips Ahoy! Original Cookies,Chips Ahoy,Snacks,4.49,13 oz,4.7,4532,True,True
+49f24c0b-3879-468d-be88-de69b721a232,Nabisco Wheat Thins,Nabisco,Snacks,3.99,9.1 oz,4.6,2834,True,True
+1d7d50c9-d989-4d15-9dc4-e2a2a1f425d1,Triscuit Original Crackers,Triscuit,Snacks,4.49,9 oz,4.7,2145,True,True
+4a38eb85-4aa3-4878-86b5-f0d48d97e398,Ritz Original Crackers,Ritz,Snacks,3.99,13.7 oz,4.8,4532,True,True
+d65575af-ee00-437c-99c1-ae949bce0a0a,Goldfish Cheddar Crackers,Goldfish,Snacks,3.49,30 oz,4.7,5234,True,True
+4ba671be-6bbd-4a96-a10f-11e896d393f4,Kind Dark Chocolate Nuts & Sea Salt,Kind,Snacks,6.99,12 count,4.8,3421,True,True
+adbefe63-3856-4a2a-a0b3-e35d9ed4a4ca,Nature Valley Crunchy Granola Bars,Nature Valley,Snacks,5.49,18 count,4.7,4321,True,True
+693ef100-dc6f-42b7-8ac9-dc07abbae5b7,Clif Bar Chocolate Chip,Clif,Snacks,11.99,12 count,4.8,2834,True,True
+ee2d8d8a-a259-40cf-afea-a4c2e1a3e439,Ben & Jerry's Half Baked Ice Cream,Ben & Jerry's,Frozen,5.99,1 pint,4.9,6234,True,True
+c52bc930-ee71-4efc-947d-8900825ea469,Haagen-Dazs Vanilla Ice Cream,Haagen-Dazs,Frozen,5.49,14 oz,4.9,4532,True,True
+a56d0344-c2b5-47a3-b1fb-3182eb827bc1,Breyers Natural Vanilla Ice Cream,Breyers,Frozen,4.99,48 oz,4.6,3421,True,True
+ea8b3289-f4e5-4d31-91f6-1bd8d63dd9c0,Talenti Gelato Sea Salt Caramel,Talenti,Frozen,6.49,1 pint,4.9,3821,True,True
