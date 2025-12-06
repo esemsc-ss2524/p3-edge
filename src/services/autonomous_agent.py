@@ -66,6 +66,8 @@ class AgentCycleWorker(QThread):
                 outcome="pending"
             )
 
+            # print(" ======== system prompt ========= " + self.system_prompt + "\n")
+
             # Execute LLM with tools (this is the blocking operation)
             response = self.llm_service.chat_with_tools(
                 message="Execute autonomous maintenance cycle based on current state.",
@@ -444,6 +446,7 @@ class AutonomousAgent(QObject):
                 summary_parts.append(
                     f"Inventory: {row[0]} total items, {row[1]} low stock, {row[2]} overstocked"
                 )
+                # print(f"Inventory: {row[0]} total items, {row[1]} low stock, {row[2]} overstocked")
 
             # Cart summary
             cart_query = """
