@@ -13,7 +13,7 @@ from PyQt6.QtWidgets import (
     QPushButton, QLabel, QHeaderView, QDialog, QMessageBox, QComboBox,
     QGroupBox, QScrollArea,
 )
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt, pyqtSignal, QThread
 from PyQt6.QtGui import QColor
 from typing import Optional, List
 from datetime import datetime, timedelta
@@ -21,6 +21,48 @@ from datetime import datetime, timedelta
 from src.services.forecast_service import ForecastService
 from src.models.inventory import Forecast
 from src.utils.logger import get_logger
+
+
+class ModelTrainingWorker(QThread):
+    """Worker thread for training forecasting models in the background."""
+
+    training_complete = pyqtSignal(dict)  # Emits training results dict
+    training_failed = pyqtSignal(str)  # Emits error message
+
+    def __init__(self, forecast_service: ForecastService):
+        super().__init__()
+        self.forecast_service = forecast_service
+
+    def run(self):
+        """Train models in background thread."""
+        try:
+            results = self.forecast_service.train_all_models(force_retrain=False)
+            self.training_complete.emit(results)
+        except Exception as e:
+            self.training_failed.emit(str(e))
+
+
+class ForecastGenerationWorker(QThread):
+    """Worker thread for generating forecasts in the background."""
+
+    generation_complete = pyqtSignal(list)  # Emits list of Forecast objects
+    generation_failed = pyqtSignal(str)  # Emits error message
+
+    def __init__(self, forecast_service: ForecastService, n_days: int = 14):
+        super().__init__()
+        self.forecast_service = forecast_service
+        self.n_days = n_days
+
+    def run(self):
+        """Generate forecasts in background thread."""
+        try:
+            forecasts = self.forecast_service.generate_forecasts_for_all_items(
+                n_days=self.n_days,
+                save_to_db=True,
+            )
+            self.generation_complete.emit(forecasts)
+        except Exception as e:
+            self.generation_failed.emit(str(e))
 
 
 class ForecastPage(QWidget):
@@ -34,6 +76,8 @@ class ForecastPage(QWidget):
         self.logger = get_logger("forecast_page")
 
         self.forecasts: List[Forecast] = []
+        self.training_worker: Optional[ModelTrainingWorker] = None
+        self.generation_worker: Optional[ForecastGenerationWorker] = None
 
         self._init_ui()
         self.refresh_forecasts()
@@ -322,44 +366,51 @@ class ForecastPage(QWidget):
         )
 
         if reply == QMessageBox.StandardButton.Yes:
-            try:
-                # Disable button during training
-                self.train_models_btn.setEnabled(False)
-                self.train_models_btn.setText("Training...")
+            # Disable button during training
+            self.train_models_btn.setEnabled(False)
+            self.train_models_btn.setText("Training...")
 
-                # Train models
-                results = self.forecast_service.train_all_models(force_retrain=False)
+            # Create and start worker thread
+            self.training_worker = ModelTrainingWorker(self.forecast_service)
+            self.training_worker.training_complete.connect(self._on_training_complete)
+            self.training_worker.training_failed.connect(self._on_training_failed)
+            self.training_worker.finished.connect(self._on_training_worker_finished)
+            self.training_worker.start()
 
-                # Re-enable button
-                self.train_models_btn.setEnabled(True)
-                self.train_models_btn.setText("Train Models")
+    def _on_training_complete(self, results: dict):
+        """Handle successful model training."""
+        # Show results
+        message = (
+            f"Training Complete!\n\n"
+            f"• Trained: {results['trained']} models\n"
+            f"• Skipped: {results['skipped']} (recently trained)\n"
+            f"• Failed: {results['failed']}\n"
+        )
 
-                # Show results
-                message = (
-                    f"Training Complete!\n\n"
-                    f"• Trained: {results['trained']} models\n"
-                    f"• Skipped: {results['skipped']} (recently trained)\n"
-                    f"• Failed: {results['failed']}\n"
-                )
+        if results["items"]:
+            pretrained_count = sum(
+                1 for item in results["items"] if item.get("pretrained", False)
+            )
+            if pretrained_count > 0:
+                message += f"\n✓ {pretrained_count} models used pre-trained weights"
 
-                if results["items"]:
-                    pretrained_count = sum(
-                        1 for item in results["items"] if item.get("pretrained", False)
-                    )
-                    if pretrained_count > 0:
-                        message += f"\n✓ {pretrained_count} models used pre-trained weights"
+        QMessageBox.information(self, "Training Complete", message)
 
-                QMessageBox.information(self, "Training Complete", message)
+    def _on_training_failed(self, error_message: str):
+        """Handle model training failure."""
+        self.logger.error(f"Failed to train models: {error_message}")
+        QMessageBox.warning(
+            self,
+            "Error",
+            f"Failed to train models: {error_message}",
+        )
 
-            except Exception as e:
-                self.logger.error(f"Failed to train models: {e}")
-                self.train_models_btn.setEnabled(True)
-                self.train_models_btn.setText("Train Models")
-                QMessageBox.warning(
-                    self,
-                    "Error",
-                    f"Failed to train models: {e}",
-                )
+    def _on_training_worker_finished(self):
+        """Handle training worker completion."""
+        # Re-enable button
+        self.train_models_btn.setEnabled(True)
+        self.train_models_btn.setText("Train Models")
+        self.training_worker = None
 
     def _on_generate_all(self):
         """Generate forecasts for all items."""
@@ -374,28 +425,43 @@ class ForecastPage(QWidget):
         )
 
         if reply == QMessageBox.StandardButton.Yes:
-            try:
-                forecasts = self.forecast_service.generate_forecasts_for_all_items(
-                    n_days=14,
-                    save_to_db=True,
-                )
+            # Disable button during generation
+            self.generate_all_btn.setEnabled(False)
+            self.generate_all_btn.setText("Generating...")
 
-                QMessageBox.information(
-                    self,
-                    "Success",
-                    f"Generated {len(forecasts)} forecasts successfully!",
-                )
+            # Create and start worker thread
+            self.generation_worker = ForecastGenerationWorker(self.forecast_service, n_days=14)
+            self.generation_worker.generation_complete.connect(self._on_generation_complete)
+            self.generation_worker.generation_failed.connect(self._on_generation_failed)
+            self.generation_worker.finished.connect(self._on_generation_worker_finished)
+            self.generation_worker.start()
 
-                self.refresh_forecasts()
-                self.forecast_updated.emit()
+    def _on_generation_complete(self, forecasts: List[Forecast]):
+        """Handle successful forecast generation."""
+        QMessageBox.information(
+            self,
+            "Success",
+            f"Generated {len(forecasts)} forecasts successfully!",
+        )
 
-            except Exception as e:
-                self.logger.error(f"Failed to generate forecasts: {e}")
-                QMessageBox.warning(
-                    self,
-                    "Error",
-                    f"Failed to generate forecasts: {e}",
-                )
+        self.refresh_forecasts()
+        self.forecast_updated.emit()
+
+    def _on_generation_failed(self, error_message: str):
+        """Handle forecast generation failure."""
+        self.logger.error(f"Failed to generate forecasts: {error_message}")
+        QMessageBox.warning(
+            self,
+            "Error",
+            f"Failed to generate forecasts: {error_message}",
+        )
+
+    def _on_generation_worker_finished(self):
+        """Handle generation worker completion."""
+        # Re-enable button
+        self.generate_all_btn.setEnabled(True)
+        self.generate_all_btn.setText("Generate All Forecasts")
+        self.generation_worker = None
 
     def _on_view_chart(self, item_id: str):
         """View forecast chart for an item."""

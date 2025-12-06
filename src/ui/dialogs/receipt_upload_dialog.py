@@ -7,7 +7,7 @@ Allows users to upload receipt images and review extracted items.
 from pathlib import Path
 from typing import List, Optional
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtWidgets import (
     QCheckBox,
     QDialog,
@@ -28,6 +28,25 @@ from src.services import InventoryService
 from src.utils import ItemMatcher
 
 
+class ReceiptProcessingWorker(QThread):
+    """Worker thread for processing receipt images in the background."""
+
+    processing_complete = pyqtSignal(list)  # Emits list of ReceiptItems
+    processing_failed = pyqtSignal(str)  # Emits error message
+
+    def __init__(self, receipt_path: str):
+        super().__init__()
+        self.receipt_path = receipt_path
+
+    def run(self):
+        """Process the receipt image in background thread."""
+        try:
+            extracted_items = process_receipt_image(self.receipt_path)
+            self.processing_complete.emit(extracted_items)
+        except Exception as e:
+            self.processing_failed.emit(str(e))
+
+
 class ReceiptUploadDialog(QDialog):
     """Dialog for uploading and processing receipts."""
 
@@ -44,6 +63,7 @@ class ReceiptUploadDialog(QDialog):
         self.extracted_items: List[ReceiptItem] = []
         self.receipt_path: Optional[str] = None
         self.item_matcher = ItemMatcher(similarity_threshold=85)
+        self.worker: Optional[ReceiptProcessingWorker] = None
 
         self.setWindowTitle("Upload Receipt")
         self.setMinimumSize(800, 600)
@@ -77,8 +97,8 @@ class ReceiptUploadDialog(QDialog):
         browse_btn.clicked.connect(self._on_browse)
         file_layout.addWidget(browse_btn)
 
-        upload_btn = QPushButton("Process Receipt")
-        upload_btn.setStyleSheet("""
+        self.process_btn = QPushButton("Process Receipt")
+        self.process_btn.setStyleSheet("""
             QPushButton {
                 background-color: #1abc9c;
                 color: white;
@@ -88,9 +108,12 @@ class ReceiptUploadDialog(QDialog):
             QPushButton:hover {
                 background-color: #16a085;
             }
+            QPushButton:disabled {
+                background-color: #95a5a6;
+            }
         """)
-        upload_btn.clicked.connect(self._on_process)
-        file_layout.addWidget(upload_btn)
+        self.process_btn.clicked.connect(self._on_process)
+        file_layout.addWidget(self.process_btn)
 
         layout.addLayout(file_layout)
 
@@ -176,31 +199,49 @@ class ReceiptUploadDialog(QDialog):
             QMessageBox.warning(self, "No File", "Please select a receipt image first.")
             return
 
-        try:
-            self.status_label.setText("Processing receipt... This may take a few seconds.")
-            self.status_label.setStyleSheet("margin: 10px 0; font-style: italic; color: #f39c12;")
+        # Disable UI elements during processing
+        self.process_btn.setEnabled(False)
+        self.process_btn.setText("Processing...")
+        self.status_label.setText("Processing receipt... This may take a few seconds.")
+        self.status_label.setStyleSheet("margin: 10px 0; font-style: italic; color: #f39c12;")
 
-            # Process in UI thread (could be moved to background thread for better UX)
-            self.extracted_items = process_receipt_image(self.receipt_path)
+        # Create and start worker thread
+        self.worker = ReceiptProcessingWorker(self.receipt_path)
+        self.worker.processing_complete.connect(self._on_processing_complete)
+        self.worker.processing_failed.connect(self._on_processing_failed)
+        self.worker.finished.connect(self._on_worker_finished)
+        self.worker.start()
 
-            if not self.extracted_items:
-                self.status_label.setText("No items found in receipt. Try a clearer image.")
-                self.status_label.setStyleSheet("margin: 10px 0; font-style: italic; color: #e74c3c;")
-                return
+    def _on_processing_complete(self, extracted_items: List[ReceiptItem]) -> None:
+        """Handle successful receipt processing."""
+        self.extracted_items = extracted_items
 
-            # Populate table
-            self._populate_table()
-
-            self.status_label.setText(
-                f"✓ Found {len(self.extracted_items)} items. Review and edit as needed."
-            )
-            self.status_label.setStyleSheet("margin: 10px 0; font-style: italic; color: #27ae60;")
-            self.add_btn.setEnabled(True)
-
-        except Exception as e:
-            QMessageBox.critical(self, "Processing Error", f"Failed to process receipt: {str(e)}")
-            self.status_label.setText("Processing failed.")
+        if not self.extracted_items:
+            self.status_label.setText("No items found in receipt. Try a clearer image.")
             self.status_label.setStyleSheet("margin: 10px 0; font-style: italic; color: #e74c3c;")
+            return
+
+        # Populate table
+        self._populate_table()
+
+        self.status_label.setText(
+            f"✓ Found {len(self.extracted_items)} items. Review and edit as needed."
+        )
+        self.status_label.setStyleSheet("margin: 10px 0; font-style: italic; color: #27ae60;")
+        self.add_btn.setEnabled(True)
+
+    def _on_processing_failed(self, error_message: str) -> None:
+        """Handle receipt processing failure."""
+        QMessageBox.critical(self, "Processing Error", f"Failed to process receipt: {error_message}")
+        self.status_label.setText("Processing failed.")
+        self.status_label.setStyleSheet("margin: 10px 0; font-style: italic; color: #e74c3c;")
+
+    def _on_worker_finished(self) -> None:
+        """Handle worker thread completion."""
+        # Re-enable process button
+        self.process_btn.setEnabled(True)
+        self.process_btn.setText("Process Receipt")
+        self.worker = None
 
     def _populate_table(self) -> None:
         """Populate table with extracted items."""
