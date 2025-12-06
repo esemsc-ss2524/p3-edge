@@ -237,7 +237,7 @@ class AutonomousAgent(QObject):
         self.logger.info(f"Autonomous agent started (checking every {self.cycle_interval_minutes} minutes)")
 
         # Run initial cycle after short delay
-        QTimer.singleShot(5000, self.run_cycle)  # 5 seconds
+        QTimer.singleShot(120_000, self.run_cycle)  # 2 mins
 
     def stop(self):
         """Stop the autonomous agent."""
