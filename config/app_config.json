@@ -36,7 +36,8 @@
   "logging": {
     "level": "INFO",
     "max_file_size_mb": 10,
-    "backup_count": 5
+    "backup_count": 5,
+    "encrypt_logs": true
   },
   "llm": {
     "provider": "gemini",
