@@ -65,6 +65,42 @@ class ForecastGenerationWorker(QThread):
             self.generation_failed.emit(str(e))
 
 
+class ForecastRefreshWorker(QThread):
+    """Worker thread for refreshing forecasts from database in the background."""
+
+    refresh_complete = pyqtSignal(list)  # Emits list of Forecast objects
+    refresh_failed = pyqtSignal(str)  # Emits error message
+
+    def __init__(self, forecast_service: ForecastService):
+        super().__init__()
+        self.forecast_service = forecast_service
+
+    def run(self):
+        """Refresh forecasts in background thread."""
+        try:
+            # Get latest forecasts for all items
+            query = """
+                SELECT f.* FROM forecasts f
+                INNER JOIN (
+                    SELECT item_id, MAX(created_at) as max_created
+                    FROM forecasts
+                    GROUP BY item_id
+                ) latest ON f.item_id = latest.item_id
+                    AND f.created_at = latest.max_created
+            """
+
+            forecasts = []
+            with self.forecast_service.db_manager.get_connection() as conn:
+                cursor = conn.execute(query)
+                for row in cursor.fetchall():
+                    forecast = self.forecast_service._row_to_forecast(row)
+                    forecasts.append(forecast)
+
+            self.refresh_complete.emit(forecasts)
+        except Exception as e:
+            self.refresh_failed.emit(str(e))
+
+
 class ForecastPage(QWidget):
     """Page for viewing and managing inventory forecasts."""
 
@@ -78,6 +114,7 @@ class ForecastPage(QWidget):
         self.forecasts: List[Forecast] = []
         self.training_worker: Optional[ModelTrainingWorker] = None
         self.generation_worker: Optional[ForecastGenerationWorker] = None
+        self.refresh_worker: Optional[ForecastRefreshWorker] = None
 
         self._init_ui()
         self.refresh_forecasts()
@@ -151,39 +188,41 @@ class ForecastPage(QWidget):
         layout.addWidget(self.table)
 
     def refresh_forecasts(self):
-        """Refresh the forecast table."""
+        """Refresh the forecast table using background worker."""
         if not self.forecast_service:
             return
 
-        try:
-            # Get latest forecasts for all items
-            query = """
-                SELECT f.* FROM forecasts f
-                INNER JOIN (
-                    SELECT item_id, MAX(created_at) as max_created
-                    FROM forecasts
-                    GROUP BY item_id
-                ) latest ON f.item_id = latest.item_id
-                    AND f.created_at = latest.max_created
-            """
+        # Disable refresh button during operation
+        self.refresh_btn.setEnabled(False)
+        self.refresh_btn.setText("Refreshing...")
 
-            forecasts = []
-            with self.forecast_service.db_manager.get_connection() as conn:
-                cursor = conn.execute(query)
-                for row in cursor.fetchall():
-                    forecast = self.forecast_service._row_to_forecast(row)
-                    forecasts.append(forecast)
+        # Create and start worker thread
+        self.refresh_worker = ForecastRefreshWorker(self.forecast_service)
+        self.refresh_worker.refresh_complete.connect(self._on_refresh_complete)
+        self.refresh_worker.refresh_failed.connect(self._on_refresh_failed)
+        self.refresh_worker.finished.connect(self._on_refresh_worker_finished)
+        self.refresh_worker.start()
 
-            self.forecasts = forecasts
-            self._populate_table()
-            self._update_stats()
-            self._update_alerts()
+    def _on_refresh_complete(self, forecasts: List[Forecast]):
+        """Handle successful forecast refresh."""
+        self.forecasts = forecasts
+        self._populate_table()
+        self._update_stats()
+        self._update_alerts()
 
-            self.logger.info(f"Refreshed {len(forecasts)} forecasts")
+        self.logger.info(f"Refreshed {len(forecasts)} forecasts")
 
-        except Exception as e:
-            self.logger.error(f"Failed to refresh forecasts: {e}")
-            QMessageBox.warning(self, "Error", f"Failed to refresh forecasts: {e}")
+    def _on_refresh_failed(self, error_message: str):
+        """Handle forecast refresh failure."""
+        self.logger.error(f"Failed to refresh forecasts: {error_message}")
+        QMessageBox.warning(self, "Error", f"Failed to refresh forecasts: {error_message}")
+
+    def _on_refresh_worker_finished(self):
+        """Handle refresh worker completion."""
+        # Re-enable refresh button
+        self.refresh_btn.setEnabled(True)
+        self.refresh_btn.setText("Refresh")
+        self.refresh_worker = None
 
     def _populate_table(self):
         """Populate the forecast table."""
