@@ -365,14 +365,15 @@ class AutonomousAgent(QObject):
 
     def _should_take_action(self) -> tuple[bool, str]:
         """
-        Quick heuristic checks to decide if agent should act.
-
-        Saves LLM compute by skipping cycles when nothing needs doing.
+        Multi-signal heuristic check.
+        Aggregates all triggering conditions so LLM can weigh them equally.
 
         Returns:
-            (should_act, reason)
+            (should_act, combined_reason)
         """
         try:
+            reasons = []
+
             # Check 1: Low stock items
             low_stock_query = """
                 SELECT COUNT(*) FROM inventory
@@ -382,32 +383,32 @@ class AutonomousAgent(QObject):
             low_stock_count = result[0][0] if result else 0
 
             if low_stock_count > 0:
-                return True, f"{low_stock_count} item(s) below minimum stock"
+                reasons.append(f"{low_stock_count} item(s) below minimum stock")
 
             # Check 2: Items expiring soon (next 3 days)
             expiring_query = """
                 SELECT COUNT(*) FROM inventory
                 WHERE expiry_date IS NOT NULL
-                  AND expiry_date <= date('now', '+3 days')
-                  AND expiry_date > date('now')
+                AND expiry_date <= date('now', '+3 days')
+                AND expiry_date > date('now')
             """
             result = self.db_manager.execute_query(expiring_query)
             expiring_count = result[0][0] if result else 0
 
             if expiring_count > 0:
-                return True, f"{expiring_count} item(s) expiring within 3 days"
+                reasons.append(f"{expiring_count} item(s) expiring within 3 days")
 
             # Check 3: Forecasts predicting runout soon (next 3 days)
             forecast_query = """
                 SELECT COUNT(*) FROM forecasts
                 WHERE predicted_runout_date <= date('now', '+3 days')
-                  AND predicted_runout_date > date('now')
+                AND predicted_runout_date > date('now')
             """
             result = self.db_manager.execute_query(forecast_query)
             forecast_count = result[0][0] if result else 0
 
             if forecast_count > 0:
-                return True, f"{forecast_count} item(s) predicted to run out within 3 days"
+                reasons.append(f"{forecast_count} item(s) predicted to run out within 3 days")
 
             # Check 4: Pending orders need approval
             pending_query = """
@@ -418,14 +419,20 @@ class AutonomousAgent(QObject):
             pending_count = result[0][0] if result else 0
 
             if pending_count > 0:
-                return True, f"{pending_count} order(s) pending approval"
+                reasons.append(f"{pending_count} order(s) pending approval")
 
-            # All checks passed - no action needed
+            # ✅ Final decision (multi-factor)
+            if reasons:
+                # Join cleanly for LLM context
+                combined_reason = " | ".join(reasons)
+                return True, combined_reason
+
             return False, "All systems healthy"
 
         except Exception as e:
             self.logger.error(f"Error in heuristic checks: {e}")
             return False, f"Error checking state: {str(e)}"
+
 
     def _get_state_summary(self) -> str:
         """Get current system state summary."""
