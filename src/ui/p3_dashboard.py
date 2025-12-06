@@ -365,6 +365,24 @@ class P3Dashboard(QWidget):
         self.input_field = AutoResizingTextEdit()
         self.input_field.setPlaceholderText("Ask P3 about groceries, recipes...")
 
+        # Clear Chat Button
+        self.clear_btn = QPushButton("🗑️")
+        self.clear_btn.setFixedSize(45, 45)
+        self.clear_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.clear_btn.setToolTip("Clear chat history")
+        self.clear_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #95a5a6;
+                color: white;
+                border-radius: 22px;
+                font-size: 18px;
+                font-weight: bold;
+            }
+            QPushButton:hover { background-color: #7f8c8d; }
+            QPushButton:pressed { background-color: #5d6d7e; transform: scale(0.95); }
+        """)
+        self.clear_btn.clicked.connect(self._clear_chat)
+
         # Send Button
         self.send_btn = QPushButton("➤")
         self.send_btn.setFixedSize(45, 45) # Slightly smaller to match default input height
@@ -376,7 +394,7 @@ class P3Dashboard(QWidget):
                 border-radius: 22px;
                 font-size: 18px;
                 font-weight: bold;
-                padding-bottom: 3px; 
+                padding-bottom: 3px;
             }
             QPushButton:hover { background-color: #2980b9; }
             QPushButton:pressed { background-color: #21618c; transform: scale(0.95); }
@@ -384,6 +402,7 @@ class P3Dashboard(QWidget):
         self.send_btn.clicked.connect(self._send_message)
 
         input_layout.addWidget(self.input_field)
+        input_layout.addWidget(self.clear_btn)
         input_layout.addWidget(self.send_btn)
         
         # Add input container with lower stretch factor (e.g., 10)
@@ -567,6 +586,49 @@ ALWAYS use 'get_learned_preferences' tool at the start of conversations about sh
         self.input_field.setEnabled(True)
         self.input_field.setFocus()
         self.status_dot.setStyleSheet("color: #27ae60;")  # Green for ready
+
+    def _clear_chat(self):
+        """Clear the current chat history from UI and database."""
+        reply = QMessageBox.question(
+            self,
+            "Clear Chat",
+            "Are you sure you want to clear the current chat history?\n\nThis will delete all messages from the database.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+
+        if reply == QMessageBox.StandardButton.Yes:
+            try:
+                # Clear from database
+                if self.db_manager:
+                    with self.db_manager.get_connection() as conn:
+                        cursor = conn.cursor()
+                        cursor.execute("DELETE FROM conversations")
+                        conn.commit()
+
+                # Clear UI - remove all chat messages
+                while self.chat_layout.count() > 1:  # Keep the stretch at the end
+                    item = self.chat_layout.takeAt(0)
+                    if item.widget():
+                        item.widget().deleteLater()
+
+                # Reset last message date
+                self.last_message_date = None
+
+                self.logger.info("Chat history cleared")
+                QMessageBox.information(
+                    self,
+                    "Success",
+                    "Chat history cleared successfully"
+                )
+
+            except Exception as e:
+                self.logger.error(f"Failed to clear chat: {e}")
+                QMessageBox.critical(
+                    self,
+                    "Error",
+                    f"Failed to clear chat history:\n{str(e)}"
+                )
 
     def _add_message(self, text: str, is_user: bool, timestamp=None, save_to_db: bool = True):
         from datetime import datetime

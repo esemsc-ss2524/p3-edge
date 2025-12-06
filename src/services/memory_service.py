@@ -32,16 +32,18 @@ class Memory:
 class MemoryService:
     """Service for managing autonomous agent memory."""
 
-    def __init__(self, db_manager: DatabaseManager, max_entries: int = 1000):
+    def __init__(self, db_manager: DatabaseManager, max_entries: int = 1000, max_preference_words: int = 1000):
         """
         Initialize memory service.
 
         Args:
             db_manager: Database manager instance
             max_entries: Maximum number of raw memories before pruning
+            max_preference_words: Maximum total words in user preferences before summarization
         """
         self.db_manager = db_manager
         self.max_entries = max_entries
+        self.max_preference_words = max_preference_words
         self.logger = get_logger("memory_service")
 
     def add_memory(
@@ -595,3 +597,230 @@ class MemoryService:
         except Exception as e:
             self.logger.error(f"Error getting preference value: {e}")
             return None
+
+    def count_preference_words(self) -> int:
+        """
+        Count total words in all user preferences.
+
+        Returns:
+            Total word count
+        """
+        try:
+            preferences = self.get_preferences(min_confidence=0.0)  # Get all preferences
+
+            total_words = 0
+            for pref in preferences:
+                # Count words in key and value
+                total_words += len(pref['preference_key'].split())
+                total_words += len(str(pref['preference_value']).split())
+
+                # Count words in metadata if present
+                if pref.get('metadata'):
+                    metadata_str = json.dumps(pref['metadata'])
+                    total_words += len(metadata_str.split())
+
+            return total_words
+
+        except Exception as e:
+            self.logger.error(f"Error counting preference words: {e}")
+            return 0
+
+    def get_preference_usage_percentage(self) -> float:
+        """
+        Get percentage of preference memory used.
+
+        Returns:
+            Percentage (0.0 - 100.0)
+        """
+        try:
+            current_words = self.count_preference_words()
+            percentage = (current_words / self.max_preference_words) * 100
+            return min(percentage, 100.0)
+
+        except Exception as e:
+            self.logger.error(f"Error calculating preference usage: {e}")
+            return 0.0
+
+    def should_summarize_preferences(self, threshold: float = 90.0) -> bool:
+        """
+        Check if preferences should be summarized.
+
+        Args:
+            threshold: Percentage threshold to trigger summarization (default 90%)
+
+        Returns:
+            True if summarization is needed
+        """
+        usage = self.get_preference_usage_percentage()
+        return usage >= threshold
+
+    def summarize_preferences(self, llm_service=None) -> bool:
+        """
+        Summarize user preferences using LLM when approaching word limit.
+
+        This consolidates low-confidence and redundant preferences while
+        maintaining high-value information.
+
+        Args:
+            llm_service: LLM service for generating summaries
+
+        Returns:
+            True if summarization succeeded
+        """
+        try:
+            if not llm_service:
+                self.logger.warning("No LLM service provided for summarization")
+                return False
+
+            # Get all preferences
+            all_preferences = self.get_preferences(min_confidence=0.0)
+
+            if not all_preferences:
+                self.logger.info("No preferences to summarize")
+                return True
+
+            # Separate high-confidence (keep) from low-confidence (summarize)
+            high_confidence = [p for p in all_preferences if p['confidence'] >= 0.7]
+            low_confidence = [p for p in all_preferences if p['confidence'] < 0.7]
+
+            if not low_confidence:
+                self.logger.info("All preferences are high confidence, pruning oldest low-mention ones")
+                # Prune low-mention preferences
+                prune_query = """
+                    DELETE FROM user_preferences
+                    WHERE mention_count <= 2
+                      AND confidence < 0.5
+                """
+                self.db_manager.execute_update(prune_query)
+                return True
+
+            # Create summary prompt
+            pref_text = "\n".join([
+                f"- {p['preference_key']}: {p['preference_value']} "
+                f"(confidence: {p['confidence']:.0%}, mentions: {p['mention_count']})"
+                for p in low_confidence
+            ])
+
+            summary_prompt = f"""Please summarize the following user preferences, keeping only the most important and well-established ones.
+Focus on consolidating similar preferences and removing redundant or low-confidence entries.
+
+Preferences to summarize:
+{pref_text}
+
+Provide a concise list of the key preferences to keep, in the format:
+category | preference_key | preference_value
+
+Only include preferences that are clearly important or frequently mentioned."""
+
+            # Get LLM summary
+            response = llm_service.chat(summary_prompt)
+            summary_text = response.response
+
+            self.logger.info(f"Preference summarization result: {summary_text}")
+
+            # Delete low-confidence preferences
+            delete_query = """
+                DELETE FROM user_preferences
+                WHERE confidence < 0.7
+            """
+            deleted = self.db_manager.execute_update(delete_query)
+
+            self.logger.info(f"Summarized preferences: deleted {deleted} low-confidence entries")
+
+            # Add a memory of this summarization
+            self.add_memory(
+                content=f"Summarized user preferences. Deleted {deleted} low-confidence entries. "
+                        f"Retained {len(high_confidence)} high-confidence preferences. Summary: {summary_text[:200]}",
+                memory_type="summary",
+                importance=8,
+                outcome="success"
+            )
+
+            return True
+
+        except Exception as e:
+            self.logger.error(f"Error summarizing preferences: {e}")
+            return False
+
+    def update_preference(
+        self,
+        preference_id: str,
+        preference_key: Optional[str] = None,
+        preference_value: Optional[str] = None,
+        category: Optional[str] = None,
+        confidence: Optional[float] = None
+    ) -> bool:
+        """
+        Update an existing preference.
+
+        Args:
+            preference_id: ID of preference to update
+            preference_key: New key (optional)
+            preference_value: New value (optional)
+            category: New category (optional)
+            confidence: New confidence (optional)
+
+        Returns:
+            True if successful
+        """
+        try:
+            # Build update query dynamically
+            updates = []
+            params = []
+
+            if preference_key is not None:
+                updates.append("preference_key = ?")
+                params.append(preference_key)
+
+            if preference_value is not None:
+                updates.append("preference_value = ?")
+                params.append(preference_value)
+
+            if category is not None:
+                updates.append("category = ?")
+                params.append(category)
+
+            if confidence is not None:
+                updates.append("confidence = ?")
+                params.append(min(max(confidence, 0.0), 1.0))
+
+            if not updates:
+                return True  # Nothing to update
+
+            updates.append("last_confirmed = CURRENT_TIMESTAMP")
+            params.append(preference_id)
+
+            query = f"""
+                UPDATE user_preferences
+                SET {', '.join(updates)}
+                WHERE preference_id = ?
+            """
+
+            self.db_manager.execute_update(query, tuple(params))
+            self.logger.info(f"Updated preference {preference_id}")
+
+            return True
+
+        except Exception as e:
+            self.logger.error(f"Error updating preference: {e}")
+            return False
+
+    def delete_preference(self, preference_id: str) -> bool:
+        """
+        Delete a user preference.
+
+        Args:
+            preference_id: ID of preference to delete
+
+        Returns:
+            True if successful
+        """
+        try:
+            query = "DELETE FROM user_preferences WHERE preference_id = ?"
+            self.db_manager.execute_update(query, (preference_id,))
+            self.logger.info(f"Deleted preference {preference_id}")
+            return True
+
+        except Exception as e:
+            self.logger.error(f"Error deleting preference: {e}")
+            return False
