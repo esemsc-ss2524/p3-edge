@@ -1,17 +1,96 @@
 """
 Logging infrastructure for P3-Edge application.
 
-Provides structured logging with file rotation and audit trail integration.
+Provides structured logging with file rotation, audit trail integration, and encryption.
 """
 
 import logging
 import sys
+import base64
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Optional
 
+from cryptography.fernet import Fernet
+
 from src.config.config_manager import get_config_manager
+
+
+class EncryptedRotatingFileHandler(RotatingFileHandler):
+    """
+    Rotating file handler that encrypts log records before writing to disk.
+
+    Uses Fernet symmetric encryption to protect sensitive log data at rest.
+    Each log line is encrypted separately to maintain rotation capability.
+    """
+
+    def __init__(
+        self,
+        filename,
+        mode='a',
+        maxBytes=0,
+        backupCount=0,
+        encoding=None,
+        delay=False,
+        encryption_key: Optional[bytes] = None
+    ):
+        """
+        Initialize encrypted rotating file handler.
+
+        Args:
+            filename: Log file path
+            mode: File opening mode
+            maxBytes: Maximum file size before rotation
+            backupCount: Number of backup files to keep
+            encoding: File encoding (ignored for encrypted logs)
+            delay: Delay file opening until first emit
+            encryption_key: Fernet encryption key (required)
+        """
+        # Always use binary mode for encrypted logs
+        super().__init__(
+            filename,
+            mode='ab',  # Binary append mode
+            maxBytes=maxBytes,
+            backupCount=backupCount,
+            encoding=None,  # No encoding for binary files
+            delay=delay
+        )
+
+        if encryption_key is None:
+            raise ValueError("Encryption key is required for EncryptedRotatingFileHandler")
+
+        self.cipher = Fernet(encryption_key)
+
+    def emit(self, record):
+        """
+        Emit a record, encrypting it before writing to file.
+
+        Args:
+            record: LogRecord to emit
+        """
+        try:
+            # Format the record as usual
+            msg = self.format(record)
+
+            # Encrypt the formatted message
+            encrypted_msg = self.cipher.encrypt(msg.encode('utf-8'))
+
+            # Encode as base64 for safe storage and add newline
+            encrypted_line = base64.b64encode(encrypted_msg) + b'\n'
+
+            # Write encrypted data
+            if self.shouldRollover(record):
+                self.doRollover()
+
+            if self.stream is None:
+                self.stream = self._open()
+
+            self.stream.write(encrypted_line)
+            self.flush()
+
+        except Exception:
+            self.handleError(record)
 
 
 class P3EdgeLogger:
@@ -47,6 +126,15 @@ class P3EdgeLogger:
         self.log_level = config.get("logging.level", "INFO")
         self.max_file_size_mb = config.get("logging.max_file_size_mb", 10)
         self.backup_count = config.get("logging.backup_count", 5)
+        self.encrypt_logs = config.get("logging.encrypt_logs", True)
+
+        # Load encryption key if encryption is enabled
+        self.encryption_key = None
+        if self.encrypt_logs:
+            self.encryption_key = self._load_encryption_key()
+            if self.encryption_key:
+                # Use .enc extension for encrypted logs
+                self.log_file = self.log_file.with_suffix('.log.enc')
 
         # Create logger
         self.logger = logging.getLogger(name)
@@ -70,16 +158,47 @@ class P3EdgeLogger:
         self._setup_file_handler()
         self._setup_console_handler()
 
+    def _load_encryption_key(self) -> Optional[bytes]:
+        """
+        Load encryption key from config/.key file.
+
+        Returns:
+            Encryption key bytes or None if not available
+        """
+        try:
+            key_file = Path("config/.key")
+            if key_file.exists():
+                with open(key_file, 'rb') as f:
+                    return f.read()
+            else:
+                # Log to console since file handler isn't set up yet
+                print(f"Warning: Encryption key file not found at {key_file}. Logs will not be encrypted.")
+                return None
+        except Exception as e:
+            print(f"Warning: Failed to load encryption key: {e}. Logs will not be encrypted.")
+            return None
+
     def _setup_file_handler(self) -> None:
-        """Set up rotating file handler."""
+        """Set up rotating file handler (encrypted or plain text)."""
         max_bytes = self.max_file_size_mb * 1024 * 1024
 
-        file_handler = RotatingFileHandler(
-            self.log_file,
-            maxBytes=max_bytes,
-            backupCount=self.backup_count,
-            encoding='utf-8'
-        )
+        # Use encrypted handler if encryption is enabled and key is available
+        if self.encrypt_logs and self.encryption_key:
+            file_handler = EncryptedRotatingFileHandler(
+                self.log_file,
+                maxBytes=max_bytes,
+                backupCount=self.backup_count,
+                encryption_key=self.encryption_key
+            )
+        else:
+            # Fall back to standard rotating file handler
+            file_handler = RotatingFileHandler(
+                self.log_file,
+                maxBytes=max_bytes,
+                backupCount=self.backup_count,
+                encoding='utf-8'
+            )
+
         file_handler.setLevel(logging.DEBUG)  # File gets all logs
         file_handler.setFormatter(self.file_formatter)
 
