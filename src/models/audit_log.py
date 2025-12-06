@@ -42,6 +42,7 @@ class ActionType(str, Enum):
     DATABASE_BACKUP = "database_backup"
     MODEL_TRAINED = "model_trained"
     MODEL_UPDATED = "model_updated"
+    SYSTEM_EVENT = "system_event"
 
     # Data ingestion
     DATA_SMART_FRIDGE = "data_smart_fridge"
