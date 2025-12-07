@@ -152,7 +152,7 @@ brew install sqlcipher tesseract
 #### 2. Clone Repository
 
 ```bash
-git clone https://github.com/your-org/p3-edge.git
+git clone https://github.com/esemsc-ss2524/p3-edge.git
 cd p3-edge
 ```
 
@@ -254,7 +254,7 @@ python src/main.py
 
 The autonomous agent runs automatically on a schedule (default: hourly). To control it:
 
-1. Navigate to **Settings** > **Budget** tab
+1. Navigate to **Settings** > **Autonomous** tab
 2. Enable/disable autonomous mode
 3. Adjust cycle interval (in minutes)
 4. View recent autonomous actions in the Activity Feed
@@ -467,41 +467,11 @@ The encrypted SQLite database includes:
 - **vendor_products**: Cached product information from vendors
 - **conversations**: LLM chat history (auto-purged after 30 days)
 
-## 🧪 Testing
-
-Run the test suite:
-
-```bash
-# Run all tests
-pytest
-
-# Run with coverage
-pytest --cov=src --cov-report=html
-
-# Run specific test file
-pytest tests/test_database.py
-
-# Run specific test
-pytest tests/test_memory_service.py::test_summarization
-```
-
 ## 📚 Documentation
 
 - [LLM Setup Guide](docs/LLM_SETUP.md) - Detailed guide for Ollama and Gemini configuration
 - [Encrypted Logging](docs/ENCRYPTED_LOGGING.md) - Log encryption and viewing
 - [API Documentation](docs/API.md) - Developer API reference
-
-## 🤝 Contributing
-
-Contributions are welcome! Please:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Write tests for new functionality
-4. Ensure all tests pass (`pytest`)
-5. Commit your changes (`git commit -m 'Add amazing feature'`)
-6. Push to the branch (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
 
 ## 📄 License
 
@@ -525,14 +495,6 @@ P3-Edge uses PyQt6 and other GPL-licensed libraries, therefore the entire projec
 - **Ollama** - On-device LLM inference
 - **Tesseract OCR** - Optical character recognition
 - **Google Gemini** - Cloud LLM API (optional)
-
-## 📞 Support
-
-For questions, issues, or feature requests:
-
-- **GitHub Issues**: [Create an issue](https://github.com/your-org/p3-edge/issues)
-- **Documentation**: Check `docs/` directory
-- **Discussions**: [GitHub Discussions](https://github.com/your-org/p3-edge/discussions)
 
 ---
 
