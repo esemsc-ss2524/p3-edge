@@ -66,6 +66,8 @@ class AgentCycleWorker(QThread):
                 outcome="pending"
             )
 
+            # print(" ======== system prompt ========= " + self.system_prompt + "\n")
+
             # Execute LLM with tools (this is the blocking operation)
             response = self.llm_service.chat_with_tools(
                 message="Execute autonomous maintenance cycle based on current state.",
@@ -210,9 +212,9 @@ class AutonomousAgent(QObject):
         self.timer.timeout.connect(self._on_timer_tick)
 
         # Safety limits per cycle
-        self.max_items_per_cycle = 3  # Don't add more than 3 items per cycle
-        self.max_spend_per_cycle = 50.0  # Don't spend more than $50 per cycle
-        self.cooldown_after_action_minutes = 30  # Wait 30 min after taking action
+        self.max_items_per_cycle = 10  # Don't add more than 3 items per cycle
+        self.max_spend_per_cycle = 100.0  # Don't spend more than $50 per cycle
+        self.cooldown_after_action_minutes = 5  # Wait 30 min after taking action
 
         self.logger.info(
             f"Autonomous agent initialized (interval: {cycle_interval_minutes}m, enabled: {enabled})"
@@ -375,14 +377,15 @@ class AutonomousAgent(QObject):
 
     def _should_take_action(self) -> tuple[bool, str]:
         """
-        Quick heuristic checks to decide if agent should act.
-
-        Saves LLM compute by skipping cycles when nothing needs doing.
+        Multi-signal heuristic check.
+        Aggregates all triggering conditions so LLM can weigh them equally.
 
         Returns:
-            (should_act, reason)
+            (should_act, combined_reason)
         """
         try:
+            reasons = []
+
             # Check 1: Low stock items
             low_stock_query = """
                 SELECT COUNT(*) FROM inventory
@@ -392,32 +395,32 @@ class AutonomousAgent(QObject):
             low_stock_count = result[0][0] if result else 0
 
             if low_stock_count > 0:
-                return True, f"{low_stock_count} item(s) below minimum stock"
+                reasons.append(f"{low_stock_count} item(s) below minimum stock")
 
             # Check 2: Items expiring soon (next 3 days)
             expiring_query = """
                 SELECT COUNT(*) FROM inventory
                 WHERE expiry_date IS NOT NULL
-                  AND expiry_date <= date('now', '+3 days')
-                  AND expiry_date > date('now')
+                AND expiry_date <= date('now', '+3 days')
+                AND expiry_date > date('now')
             """
             result = self.db_manager.execute_query(expiring_query)
             expiring_count = result[0][0] if result else 0
 
             if expiring_count > 0:
-                return True, f"{expiring_count} item(s) expiring within 3 days"
+                reasons.append(f"{expiring_count} item(s) expiring within 3 days")
 
             # Check 3: Forecasts predicting runout soon (next 3 days)
             forecast_query = """
                 SELECT COUNT(*) FROM forecasts
                 WHERE predicted_runout_date <= date('now', '+3 days')
-                  AND predicted_runout_date > date('now')
+                AND predicted_runout_date > date('now')
             """
             result = self.db_manager.execute_query(forecast_query)
             forecast_count = result[0][0] if result else 0
 
             if forecast_count > 0:
-                return True, f"{forecast_count} item(s) predicted to run out within 3 days"
+                reasons.append(f"{forecast_count} item(s) predicted to run out within 3 days")
 
             # Check 4: Pending orders need approval
             pending_query = """
@@ -428,14 +431,20 @@ class AutonomousAgent(QObject):
             pending_count = result[0][0] if result else 0
 
             if pending_count > 0:
-                return True, f"{pending_count} order(s) pending approval"
+                reasons.append(f"{pending_count} order(s) pending approval")
 
-            # All checks passed - no action needed
+            # ✅ Final decision (multi-factor)
+            if reasons:
+                # Join cleanly for LLM context
+                combined_reason = " | ".join(reasons)
+                return True, combined_reason
+
             return False, "All systems healthy"
 
         except Exception as e:
             self.logger.error(f"Error in heuristic checks: {e}")
             return False, f"Error checking state: {str(e)}"
+
 
     def _get_state_summary(self) -> str:
         """Get current system state summary."""
@@ -457,6 +466,24 @@ class AutonomousAgent(QObject):
                     f"Inventory: {row[0]} total items, {row[1]} low stock, {row[2]} overstocked"
                 )
 
+            # ✅ Forecast runout summary (next 3 days)
+            forecast_summary_query = """
+                SELECT 
+                    COUNT(*) as total,
+                    SUM(CASE 
+                        WHEN predicted_runout_date <= date('now', '+3 days')
+                        AND predicted_runout_date > date('now')
+                        THEN 1 ELSE 0 END
+                    ) as runout_soon
+                FROM forecasts
+            """
+            result = self.db_manager.execute_query(forecast_summary_query)
+            if result:
+                row = result[0]
+                summary_parts.append(
+                    f"Forecasts: {row[0]} tracked items, {row[1]} predicted to run out within 3 days"
+                )
+
             # Cart summary
             cart_query = """
                 SELECT vendor, COUNT(*) as items
@@ -475,7 +502,7 @@ class AutonomousAgent(QObject):
             budget_query = """
                 SELECT SUM(total_cost) FROM orders
                 WHERE created_at >= date('now', '-3 days')
-                  AND status IN ('PENDING', 'APPROVED', 'PLACED')
+                AND status IN ('PENDING', 'APPROVED', 'PLACED')
             """
             result = self.db_manager.execute_query(budget_query)
             weekly_spend = result[0][0] if result and result[0][0] else 0.0
@@ -486,6 +513,7 @@ class AutonomousAgent(QObject):
         except Exception as e:
             self.logger.error(f"Error getting state summary: {e}")
             return "Error retrieving state"
+
 
     def _build_system_prompt(
         self,
@@ -536,6 +564,7 @@ Focus on the highest priority items first.
 ALWAYS check user preferences before making product decisions.
 Log your reasoning clearly.
 Stop when constraints are met or all critical issues addressed.
+Act independently without asking user for confirmation.
 """
 
     def _on_worker_completed(self, cycle_id: str, summary: dict):

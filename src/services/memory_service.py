@@ -146,23 +146,23 @@ class MemoryService:
             # Format context
             context_parts = []
 
-            if important:
-                context_parts.append("=== Important Historical Context ===")
-                for row in important:
-                    memory_type = row['memory_type']
-                    content = row['content']
-                    timestamp = row['timestamp']
-                    outcome = row['outcome'] or 'N/A'
-                    context_parts.append(f"[{timestamp}] {memory_type.upper()}: {content} (Outcome: {outcome})")
+            # if important:
+            #     context_parts.append("=== Important Historical Context ===")
+            #     for row in important:
+            #         memory_type = row['memory_type']
+            #         content = row['content']
+            #         timestamp = row['timestamp']
+            #         outcome = row['outcome'] or 'N/A'
+            #         context_parts.append(f"[{timestamp}] {memory_type.upper()}: {content} (Outcome: {outcome})")
 
-            if recent:
-                context_parts.append("\n=== Recent Activity ===")
-                for row in recent:
-                    memory_type = row['memory_type']
-                    content = row['content']
-                    timestamp = row['timestamp']
-                    outcome = row['outcome'] or 'N/A'
-                    context_parts.append(f"[{timestamp}] {memory_type.upper()}: {content} (Outcome: {outcome})")
+            # if recent:
+            #     context_parts.append("\n=== Recent Activity ===")
+            #     for row in recent:
+            #         memory_type = row['memory_type']
+            #         content = row['content']
+            #         timestamp = row['timestamp']
+            #         outcome = row['outcome'] or 'N/A'
+            #         context_parts.append(f"[{timestamp}] {memory_type.upper()}: {content} (Outcome: {outcome})")
 
             if not context_parts:
                 return "No previous memories."

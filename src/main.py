@@ -159,6 +159,7 @@ class P3EdgeApplication:
             # Initialize autonomous agent
             agent_enabled = self.config.get("agent.enabled", True)
             agent_interval = self.config.get("agent.cycle_interval_minutes", 60)
+            # print(agent_interval)
             self.autonomous_agent = AutonomousAgent(
                 db_manager=self.db_manager,
                 tool_executor=self.tool_executor,
