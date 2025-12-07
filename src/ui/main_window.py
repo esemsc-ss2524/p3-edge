@@ -169,7 +169,7 @@ class MainWindow(QMainWindow):
             "forecasts": ForecastPage(self.forecast_service) if self.forecast_service else self._create_placeholder_page("Forecast View"),
             "shopping_cart": CartPage(self.db_manager, cart_service=self.cart_service) if self.db_manager else self._create_placeholder_page("Shopping Cart"),
             "order_history": OrderPage(self.db_manager, cart_service=self.cart_service) if self.db_manager else self._create_placeholder_page("Order History"),
-            "settings": SettingsPage(self.db_manager) if self.db_manager else self._create_placeholder_page("Settings"),
+            "settings": SettingsPage(self.db_manager, autonomous_agent=self.autonomous_agent) if self.db_manager else self._create_placeholder_page("Settings"),
         }
 
         for page in self.pages.values():
