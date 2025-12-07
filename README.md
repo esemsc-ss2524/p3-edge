@@ -119,6 +119,9 @@ The following tools are **permanently blocked** to ensure safety and require hum
 - **Real-Time Updates**: PyQt6 signals for seamless UI state management
 - **Progress Indicators**: Visual feedback during background operations
 
+## Team
+- Simranjeet Singh, AI Advisor at GeonatIQ
+
 ## 🚀 Installation
 
 ### Prerequisites
