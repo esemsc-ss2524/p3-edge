@@ -52,7 +52,7 @@
     }
   },
   "agent": {
-    "enabled": true,
-    "cycle_interval_minutes": 5 
+    "enabled": false,
+    "cycle_interval_minutes": 5
   }
 }
