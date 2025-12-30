@@ -120,7 +120,8 @@ The following tools are **permanently blocked** to ensure safety and require hum
 - **Progress Indicators**: Visual feedback during background operations
 
 ## Team
-- Simranjeet Singh, AI Advisor at GeonatIQ
+- Simranjeet Singh
+- Amritpal Singh
 
 ## 🚀 Installation
 
